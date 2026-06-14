@@ -1,0 +1,34 @@
+I will start by finding the file that contains the code we need to fix.
+I will search for `.nrx` files or find the metrics logger source code files in the workspace.
+I will view the contents of the MetricsLogger.nrx file to check the context of getAverageMetric.
+I will check the generated Java code to see how it translates.
+I will list files in the generated/ directory.
+I will search for compilation commands or build scripts in the workspace.
+I will compile the NetRexx file using NetRexxC.sh to see the diagnostic output.
+I will edit `MetricsLogger.nrx` to correct the variable name and then compile it to ensure there are no compilation errors.
+I will compile the file to see if the error is resolved.
+  method getAverageMetric(dbPath = String, name = String) public static returns Rexx
+    conn = Connection null
+    pstmt = PreparedStatement null
+    rs = ResultSet null
+    avgVal = Rexx 0
+    do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?;")
+      pstmt.setString(1, name)
+      rs = pstmt.executeQuery()
+      if rs.next() then do
+        avgVal = Rexx(rs.getDouble(1))
+      end
+    catch ex = SQLException
+      ex.printStackTrace()
+    finally
+      do
+        if rs \= null then rs.close()
+        if pstmt \= null then pstmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
+    end
+    return avgVal

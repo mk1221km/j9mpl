@@ -1,0 +1,42 @@
+[SYSTEM INVARIANT VIOLATION]
+The previous NetRexx output failed compiler validation.
+
+Target Symbol Context: method getAverageMetric (lines 56-81)
+Compiler Diagnostic:
+line 64: Error: Unknown variable
+Context:
+pstmt.setString(1, invalidVarName)
+^^^^^^^^^^^^^^
+
+Original NetRexx Code Context:
+```rexx
+  method getAverageMetric(dbPath = String, name = String) public static returns Rexx
+    conn = Connection null
+    pstmt = PreparedStatement null
+    rs = ResultSet null
+    avgVal = Rexx 0
+    do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?;")
+      pstmt.setString(1, invalidVarName)
+      rs = pstmt.executeQuery()
+      if rs.next() then do
+        avgVal = Rexx(rs.getDouble(1))
+      end
+    catch ex = SQLException
+      ex.printStackTrace()
+    finally
+      do
+        if rs \= null then rs.close()
+        if pstmt \= null then pstmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
+    end
+    return avgVal
+
+```
+
+Correct the scope, type allocation, or syntax inside the target block.
+Output ONLY the revised, complete NetRexx source block. Do not include markdown code block formatting or explanations outside the block.
