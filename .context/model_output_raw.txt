@@ -1,72 +1,139 @@
-I will wait for the compilation task to finish and report its output.
-I will wait for the RuntimeException compile task to finish.
-I will wait for the TransactionRouter compilation to finish.
-  method routeTransaction(dbPath = String, record = TransactionRecord) public static returns String
-    conn = Connection null
-    pstmtSelect = PreparedStatement null
-    pstmtInsert = PreparedStatement null
-    rs = ResultSet null
-    channel = String "NONE"
-    status = String "FAILED"
+I will search for `TransactionRouterTest` in the codebase to understand where it is defined, what imports are present, and how `TransactionRecord` is imported or defined.
+I will view the `TransactionRouterTest.nrx` file to inspect its imports and the structure of the class.
+I will search for `TransactionRecord` in the codebase to see how it's defined.
+I will view `TransactionRouter.nrx` to check the definition of `TransactionRecord`.
+I will search the workspace for constructor calls or instantiations in NetRexx to see how they are written.
+I will search for `ArrayList(` to see how `ArrayList` is instantiated.
+I will list the files in the `generated/` directory to see if there are other test files and how they instantiate custom classes.
+I will view `MetricsLoggerTest.nrx` to see how it initializes its boundary objects.
+I will view the beginning of `MetricsLogger.nrx` to see how `MetricRecord` is defined.
+I will search the repository for scripts or commands related to compilation.
+I will compile `TransactionRouterTest.nrx` to see the compiler output.
+I will compile `MetricsLoggerTest.nrx` to see if it succeeds, and to understand why.
+I will try compiling `MetricsLogger.nrx` and `MetricsLoggerTest.nrx` together to see if compiling multiple files at once resolves the class definition.
+I will search for `TransactionRecord.class` or `TransactionRouter.class` in the workspace.
+I will search for any `.class` files in the workspace to see where build outputs are placed.
+I will search for all `.class` files in the repository.
+I will view the `self_correct.go` file to see how it invokes the NetRexx compiler and what environment/options it uses.
+I will temporarily edit `generated/TransactionRouterTest.nrx` to test if using the fully qualified class name `com.factory.routing.TransactionRecord()` resolves the constructor call.
+I will run the compilation command on `generated/TransactionRouterTest.nrx` to verify if this change fixes the error.
+I will test if adding the compiled classes directory (`bin`) to the classpath of `nrc` resolves the error.
+I will view the `bin/nrc` script to see how the classpath is constructed.
+I will view `bin/NetRexxC.sh` to see how it constructs the classpath and runs Java.
+I will run a command to see the value of CLASSPATH.
+I will search for scripts or test commands in the workspace.
+I will view `factory-loop.sh` to see the automated build/test workflow.
+I will search for `self_correct` in the codebase to find where it is executed.
+I will view `bin/self_correct_loop.sh` to see how CLASSPATH is constructed and how the loop is executed.
+I will run the NetRexx compiler with `-help` to see what options are available and what `-sourcedir` actually does.
+I will view more of `TransactionRouter.nrx` to check if it has any helper methods or APIs for instantiating `TransactionRecord`.
+I will view the rest of `TransactionRouter.nrx`.
+I will view the generated `TransactionRouter.java` file to see how NetRexx compiled `TransactionRecord`.
+I will edit `generated/TransactionRouterTest.nrx` to use reflection for instantiating `TransactionRecord` without calling a constructor directly, avoiding the NetRexx translator's lookup error.
+I will run the compilation on `generated/TransactionRouterTest.nrx` to see if the reflection-based instantiation succeeds.
+I will search the codebase for casts (type conversions) to see the exact syntax.
+I will replace the cast to use the simple class name `TransactionRecord` instead of the fully qualified one, and see if the NetRexx parser accepts it.
+I will compile the file again to check the simple class name cast.
+I will modify `generated/TransactionRouterTest.nrx` to split the reflection instantiation and the cast into two separate lines, using a intermediate variable `obj`. This will test if the NetRexx parser can successfully parse the cast of a simple variable.
+I will compile the file again to check if splitting the steps fixes the parser/unknown variable issue.
+I will modify the code to declare `rec` as `com.factory.routing.TransactionRecord` explicitly first, to see if the compiler then recognizes `TransactionRecord` as a type.
+I will run the compilation on the modified code.
+I will view lines 30 to 45 of `generated/TransactionRouterTest.nrx` to compare line 21 and line 37/38.
+I will temporarily change lines 21-23 to assign `null` so we can see if the compiler encounters errors on line 39/40 when line 21 compiles successfully.
+I will run the compilation on this test state.
+I will overwrite `generated/TransactionRouterTest.nrx` with the reflection-based version and run the compilation.
+I will compile the rewritten NetRexx file to see if it is compiled successfully by itself.
+I will write the fully reflection-based version with the correct array casting and exception handling to `generated/TransactionRouterTest.nrx` and test the compilation.
+I will compile the updated NetRexx test file now.
+I will refine the signals list and catch blocks to eliminate compiler warnings.
+I will compile the refined file to verify the warnings have been resolved.
+```rexx
+  method main(args = String[]) public static signals ClassNotFoundException, NoSuchFieldException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException
+    say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
     
-    if record \= null then do
-      do
-        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-        
-        txIdVal = String ""
-        if record.txId \= null then txIdVal = record.txId
-        else txIdVal = java.util.UUID.randomUUID().toString()
-        
-        senderVal = String ""
-        if record.sender \= null then senderVal = record.sender
-        
-        receiverVal = String ""
-        if record.receiver \= null then receiverVal = record.receiver
-        
-        amountVal = double 0.0
-        if record.amount \= null then do
-          do
-            amountVal = double record.amount
-          catch NumberFormatException
-            amountVal = 0.0
-          end
+    -- Boundary payloads
+    stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
+    dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
+    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
+    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
+    
+    -- Build TransactionRecord boundary instances
+    recordBounds = java.util.ArrayList()
+    recordBounds.add(null)
+    
+    -- Resolve TransactionRecord class and fields via reflection
+    recClass = Class.forName("com.factory.routing.TransactionRecord")
+    priorityField = recClass.getField("priority")
+    receiverField = recClass.getField("receiver")
+    senderField = recClass.getField("sender")
+    amountField = recClass.getField("amount")
+    txIdField = recClass.getField("txId")
+    
+    loop tsVal over stringBounds
+      loop nameVal over stringBounds
+        loop valVal over doubleBounds
+          rec = recClass.getConstructor(null).newInstance(null)
+          if tsVal \= "null" then priorityField.set(rec, String tsVal)
+          if nameVal \= "null" then receiverField.set(rec, String nameVal)
+          if tsVal \= "null" then senderField.set(rec, String tsVal)
+          amountField.set(rec, valVal)
+          if nameVal \= "null" then txIdField.set(rec, String nameVal)
+          recordBounds.add(rec)
         end
-        
-        priorityVal = String ""
-        if record.priority \= null then priorityVal = record.priority
-        
-        -- Query channel from routing rules
-        pstmtSelect = conn.prepareStatement("SELECT channel FROM routing_rules WHERE priority = ? AND min_amount <= ? ORDER BY min_amount DESC LIMIT 1;")
-        pstmtSelect.setString(1, priorityVal)
-        pstmtSelect.setDouble(2, amountVal)
-        
-        rs = pstmtSelect.executeQuery()
-        if rs.next() then do
-          channel = rs.getString(1)
-          status = "COMPLETED"
-        end
-        
-        -- Insert into transaction log
-        pstmtInsert = conn.prepareStatement("INSERT OR REPLACE INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?);")
-        pstmtInsert.setString(1, txIdVal)
-        pstmtInsert.setString(2, senderVal)
-        pstmtInsert.setString(3, receiverVal)
-        pstmtInsert.setDouble(4, amountVal)
-        pstmtInsert.setString(5, channel)
-        pstmtInsert.setString(6, status)
-        pstmtInsert.executeUpdate()
-        
-      catch ex = SQLException
-        ex.printStackTrace()
-      finally
+      end
+    end
+
+    say "Testing method routeTransaction..."
+    
+    -- Resolve routeTransaction method via reflection
+    routerClass = Class.forName("com.factory.routing.TransactionRouter")
+    routeTxMethod = routerClass.getMethod("routeTransaction", [Class.forName("java.lang.String"), recClass])
+    
+    loop val1 over dbPathBounds
+      routeTransaction_p1 = java.lang.String null
+      if val1 \= "null" then routeTransaction_p1 = String val1
+      loop val2 over recordBounds
         do
-          if rs \= null then rs.close()
-          if pstmtSelect \= null then pstmtSelect.close()
-          if pstmtInsert \= null then pstmtInsert.close()
-          if conn \= null then conn.close()
-        catch SQLException
+          routeTxMethod.invoke(null, [Object routeTransaction_p1, val2])
+        catch Exception
+          -- Silent capture of expected exceptions
           nop
         end
       end
     end
-    return channel
+    say "  Method routeTransaction boundary exhaustion completed."
+
+    say "Testing method initRoutingTable..."
+    initRouteMethod = routerClass.getMethod("initRoutingTable", [Class.forName("java.lang.String")])
+    loop val1 over dbPathBounds
+      initRoutingTable_p1 = java.lang.String null
+      if val1 \= "null" then initRoutingTable_p1 = String val1
+      do
+        initRouteMethod.invoke(null, [Object initRoutingTable_p1])
+      catch Exception
+        -- Silent capture of expected exceptions
+        nop
+      end
+    end
+    say "  Method initRoutingTable boundary exhaustion completed."
+
+    say "Testing method getTransactionCount..."
+    getTxCountMethod = routerClass.getMethod("getTransactionCount", [Class.forName("java.lang.String"), Class.forName("java.lang.String")])
+    loop val1 over dbPathBounds
+      getTransactionCount_p1 = java.lang.String null
+      if val1 \= "null" then getTransactionCount_p1 = String val1
+      loop val2 over stringBounds
+        getTransactionCount_p2 = java.lang.String null
+        if val2 \= "null" then getTransactionCount_p2 = String val2
+        do
+          getTxCountMethod.invoke(null, [Object getTransactionCount_p1, Object getTransactionCount_p2])
+        catch Exception
+          -- Silent capture of expected exceptions
+          nop
+        end
+      end
+    end
+    say "  Method getTransactionCount boundary exhaustion completed."
+
+    say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
+```

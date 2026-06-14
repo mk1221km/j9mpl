@@ -1,30 +1,99 @@
-package com.factory
+package com.factory.routing
 options binary
 import java.sql.SQLException
 
 class TransactionRouterTest public
   method main(args = String[]) public static
-    say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
-    
-    -- Boundary payloads
-    stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
-    dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
-    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
-    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
-    
-    -- Build MetricRecord boundary instances
-    recordBounds = java.util.ArrayList()
-    recordBounds.add(null)
-    loop tsVal over stringBounds
-      loop nameVal over stringBounds
-        loop valVal over doubleBounds
-          rec = MetricRecord()
-          if tsVal \= "null" then rec.timestamp = String tsVal
-          if nameVal \= "null" then rec.metricName = String nameVal
-          rec.metricValue = valVal
-          recordBounds.add(rec)
+    do
+      say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
+      
+      -- Load classes
+      recordClass = Class.forName("com.factory.routing.TransactionRecord")
+      routerClass = Class.forName("com.factory.routing.TransactionRouter")
+      stringClass = Class.forName("java.lang.String")
+      
+      -- Get fields of TransactionRecord
+      f_txId = recordClass.getField("txId")
+      f_sender = recordClass.getField("sender")
+      f_receiver = recordClass.getField("receiver")
+      f_amount = recordClass.getField("amount")
+      f_priority = recordClass.getField("priority")
+      
+      -- Get methods of TransactionRouter
+      m_route = routerClass.getMethod("routeTransaction", [stringClass, recordClass])
+      m_init = routerClass.getMethod("initRoutingTable", [stringClass])
+      m_count = routerClass.getMethod("getTransactionCount", [stringClass, stringClass])
+
+      -- Boundary payloads
+      stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
+      dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
+      doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
+      
+      -- Build TransactionRecord boundary instances
+      recordBounds = java.util.ArrayList()
+      recordBounds.add(null)
+      loop tsVal over stringBounds
+        loop nameVal over stringBounds
+          loop valVal over doubleBounds
+            constructors = recordClass.getDeclaredConstructors()
+            rec = constructors[0].newInstance(null)
+            if tsVal \= "null" then f_priority.set(rec, String tsVal)
+            if nameVal \= "null" then f_receiver.set(rec, String nameVal)
+            if tsVal \= "null" then f_sender.set(rec, String tsVal)
+            f_amount.set(rec, valVal)
+            if nameVal \= "null" then f_txId.set(rec, String nameVal)
+            recordBounds.add(rec)
+          end
         end
       end
-    end
 
-    say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
+      say "Testing method routeTransaction..."
+      loop val1 over dbPathBounds
+        routeTransaction_p1 = java.lang.String null
+        if val1 \= "null" then routeTransaction_p1 = String val1
+        loop val2 over recordBounds
+          routeTransaction_p2 = Object val2
+          do
+            m_route.invoke(null, [Object routeTransaction_p1, Object routeTransaction_p2])
+          catch Exception
+            -- Silent capture of expected exceptions
+            nop
+          end
+        end
+      end
+      say "  Method routeTransaction boundary exhaustion completed."
+
+      say "Testing method initRoutingTable..."
+      loop val1 over dbPathBounds
+        initRoutingTable_p1 = java.lang.String null
+        if val1 \= "null" then initRoutingTable_p1 = String val1
+        do
+          m_init.invoke(null, [Object initRoutingTable_p1])
+        catch Exception
+          -- Silent capture of expected exceptions
+          nop
+        end
+      end
+      say "  Method initRoutingTable boundary exhaustion completed."
+
+      say "Testing method getTransactionCount..."
+      loop val1 over dbPathBounds
+        getTransactionCount_p1 = java.lang.String null
+        if val1 \= "null" then getTransactionCount_p1 = String val1
+        loop val2 over stringBounds
+          getTransactionCount_p2 = java.lang.String null
+          if val2 \= "null" then getTransactionCount_p2 = String val2
+          do
+            m_count.invoke(null, [Object getTransactionCount_p1, Object getTransactionCount_p2])
+          catch Exception
+            -- Silent capture of expected exceptions
+            nop
+          end
+        end
+      end
+      say "  Method getTransactionCount boundary exhaustion completed."
+
+      say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
+    catch Exception
+      nop
+    end

@@ -1,29 +1,72 @@
-  method getTransactionCount(dbPath = String, status = String) public static returns Rexx
-    conn = Connection null
-    pstmt = PreparedStatement null
-    rs = ResultSet null
-    count = Rexx 0
-   I will read the generated test harness file `generated/TransactionRouterTest.nrx` to inspect the test suite structure.
- Osiris: Task 98 is running.
-RE status = ?;")
-      
-      statusVal = String ""
-      if status \= null then statusVal = status
-      pstmt.setString(1, statusVal)
-      
-      rs = pstmt.executeQuery()
-      if rs.next() then do
-        count = Rexx(rs.getInt(1))
+  method main(args = String[]) public static
+    say "=== [Phase III] Starting Boundary Input Exhaustion Test for MetricsLogger ==="
+    
+    -- Boundary payloads
+    stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
+    dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
+    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
+    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
+    
+    -- Build MetricRecord boundary instances
+    recordBounds = java.util.ArrayList()
+    recordBounds.add(null)
+    loop tsVal over stringBounds
+      loop nameVal over stringBounds
+        loop valVal over doubleBounds
+          rec = MetricRecord()
+          if tsVal \= "null" then rec.timestamp = String tsVal
+          if nameVal \= "null" then rec.metricName = String nameVal
+          rec.metricValue = valVal
+          recordBounds.add(rec)
+        end
       end
-    catch ex = SQLException
-      ex.printStackTrace()
-    finally
+    end
+
+    say "Testing method logMetric..."
+    loop val1 over dbPathBounds
+      logMetric_p1 = java.lang.String null
+      if val1 \= "null" then logMetric_p1 = String val1
+      loop val2 over recordBounds
+        logMetric_p2 = com.factory.metrics.MetricRecord null
+        logMetric_p2 = MetricRecord val2
+        do
+          MetricsLogger.logMetric(logMetric_p1, logMetric_p2)
+        catch ex = RuntimeException
+          -- Silent capture of expected exceptions
+          nop
+        end
+      end
+    end
+    say "  Method logMetric boundary exhaustion completed."
+
+    say "Testing method getAverageMetric..."
+    loop val1 over dbPathBounds
+      getAverageMetric_p1 = java.lang.String null
+      if val1 \= "null" then getAverageMetric_p1 = String val1
+      loop val2 over stringBounds
+        getAverageMetric_p2 = java.lang.String null
+        if val2 \= "null" then getAverageMetric_p2 = String val2
+        do
+          MetricsLogger.getAverageMetric(getAverageMetric_p1, getAverageMetric_p2)
+        catch ex = RuntimeException
+          -- Silent capture of expected exceptions
+          nop
+        end
+      end
+    end
+    say "  Method getAverageMetric boundary exhaustion completed."
+
+    say "Testing method initDatabase..."
+    loop val1 over dbPathBounds
+      initDatabase_p1 = java.lang.String null
+      if val1 \= "null" then initDatabase_p1 = String val1
       do
-        if rs \= null then rs.close()
-        if pstmt \= null then pstmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
+        MetricsLogger.initDatabase(initDatabase_p1)
+      catch ex = RuntimeException
+        -- Silent capture of expected exceptions
         nop
       end
     end
-    return count
+    say "  Method initDatabase boundary exhaustion completed."
+
+    say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="

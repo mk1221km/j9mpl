@@ -1,4 +1,4 @@
-/* Generated from 'TransactionRouter.nrx' 14 Jun 2026 23:37:30 [v5.10] */
+/* Generated from 'TransactionRouter.nrx' 15 Jun 2026 00:33:46 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Sourcedir Trace2 Verbose3 */
 package com.factory.routing;
 import java.sql.Connection;
@@ -7,6 +7,13 @@ import java.sql.Statement;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.DriverManager;
+
+
+class TransactionRecordDummy{
+ private static final java.lang.String $0="TransactionRouter.nrx";
+ 
+ public TransactionRecordDummy(){return;}
+ }
 
 
 class TransactionRecord{
@@ -30,10 +37,11 @@ public class TransactionRouter{
  public static void initRoutingTable(java.lang.String dbPath){
   java.sql.Connection conn;
   java.sql.Statement stmt;
-  java.sql.SQLException ex=null;
+  java.lang.Exception ex=null;
   conn=(java.sql.Connection)null;
   stmt=(java.sql.Statement)null;
   {try{
+   java.lang.Class.forName("org.sqlite.JDBC");
    conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
    stmt=conn.createStatement();
    stmt.executeUpdate("CREATE TABLE IF NOT EXISTS routing_rules (min_amount REAL, priority TEXT, channel TEXT, PRIMARY KEY (min_amount, priority));");
@@ -42,7 +50,7 @@ public class TransactionRouter{
    stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (0.0, \'HIGH\', \'WIRE\');");
    stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (10000.0, \'HIGH\', \'SWIFT\');");
   }
-  catch (java.sql.SQLException $1){ex=$1;
+  catch (java.lang.Exception $1){ex=$1;
    ex.printStackTrace();
   }
   finally{
@@ -73,7 +81,7 @@ public class TransactionRouter{
   java.lang.String receiverVal=null;
   double amountVal=0;
   java.lang.String priorityVal=null;
-  java.sql.SQLException ex=null;
+  java.lang.Exception ex=null;
   conn=(java.sql.Connection)null;
   pstmtSelect=(java.sql.PreparedStatement)null;
   pstmtInsert=(java.sql.PreparedStatement)null;
@@ -83,6 +91,7 @@ public class TransactionRouter{
   if (record!=null) 
    {
     {try{
+     java.lang.Class.forName("org.sqlite.JDBC");
      conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
      txIdVal="";
      if (record.txId!=null) 
@@ -97,9 +106,7 @@ public class TransactionRouter{
       receiverVal=record.receiver;
      amountVal=(double)0.0D;
      if (record.amount!=null) 
-      {
-       amountVal=record.amount.todouble();
-      }
+      amountVal=record.amount.todouble();
      priorityVal="";
      if (record.priority!=null) 
       priorityVal=record.priority;
@@ -121,7 +128,7 @@ public class TransactionRouter{
      pstmtInsert.setString(6,status);
      pstmtInsert.executeUpdate();
     }
-    catch (java.sql.SQLException $3){ex=$3;
+    catch (java.lang.Exception $3){ex=$3;
      ex.printStackTrace();
     }
     finally{
@@ -152,12 +159,13 @@ public class TransactionRouter{
   java.sql.ResultSet rs;
   netrexx.lang.Rexx count;
   java.lang.String statusVal=null;
-  java.sql.SQLException ex=null;
+  java.lang.Exception ex=null;
   conn=(java.sql.Connection)null;
   pstmt=(java.sql.PreparedStatement)null;
   rs=(java.sql.ResultSet)null;
   count=new netrexx.lang.Rexx(0);
   {try{
+   java.lang.Class.forName("org.sqlite.JDBC");
    conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
    pstmt=conn.prepareStatement("SELECT COUNT(*) FROM transaction_log WHERE status = ?;");
    statusVal="";
@@ -170,7 +178,7 @@ public class TransactionRouter{
      count=new netrexx.lang.Rexx(rs.getInt(1));
     }
   }
-  catch (java.sql.SQLException $5){ex=$5;
+  catch (java.lang.Exception $5){ex=$5;
    ex.printStackTrace();
   }
   finally{

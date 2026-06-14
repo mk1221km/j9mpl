@@ -13,9 +13,9 @@ list[str] parseParams(str paramsStr) {
 }
 
 // Generate boundary values based on type
-str getBoundaryList(str paramType, str methodName, int paramIndex) {
+str getBoundaryList(str paramType, str methodName, int paramIndex, str recordType) {
     if (contains(paramType, "String")) {
-        if (paramIndex == 0 && (methodName == "initDatabase" || methodName == "logMetric" || methodName == "getAverageMetric")) {
+        if (paramIndex == 0 && (methodName == "initDatabase" || methodName == "logMetric" || methodName == "getAverageMetric" || methodName == "initRoutingTable" || methodName == "routeTransaction" || methodName == "getTransactionCount")) {
             return "dbPathBounds";
         }
         return "stringBounds";
@@ -23,7 +23,7 @@ str getBoundaryList(str paramType, str methodName, int paramIndex) {
         return "rexxBounds";
     } else if (contains(paramType, "int") || contains(paramType, "double") || contains(paramType, "float") || contains(paramType, "long")) {
         return "doubleBounds";
-    } else if (contains(paramType, "MetricRecord")) {
+    } else if (recordType != "" && contains(paramType, recordType)) {
         return "recordBounds";
     }
     return "[\"null\"]";
@@ -61,6 +61,45 @@ void generateTest(str className, loc declsFile, loc testFile) {
         packageName = "com.factory"; // fallback
     }
     
+    // Find custom record types in method parameters
+    str recordType = "";
+    for (m <- methods) {
+        for (p <- m.params) {
+            str tp = trim(p);
+            if (tp != "" && !contains(tp, "String") && !contains(tp, "Rexx") && 
+                !contains(tp, "int") && !contains(tp, "double") && !contains(tp, "float") && !contains(tp, "long") && !contains(tp, "[]")) {
+                if (contains(tp, ".")) {
+                    list[str] parts = split(".", tp);
+                    recordType = parts[size(parts)-1];
+                } else {
+                    recordType = tp;
+                }
+            }
+        }
+    }
+    if (recordType == "") {
+        recordType = "MetricRecord"; // fallback
+    }
+    
+    // Find fields of the recordType dynamically
+    list[tuple[str name, str typeName]] recordFields = [];
+    for (line <- declLines) {
+        if (/java\+field:\/\/\/[a-zA-Z0-9_\/]+\/<recName:\w+>\/<fieldName:\w+>/ := line) {
+            if (recName == recordType) {
+                str fType = "String";
+                if (fieldName == "amount" || fieldName == "metricValue" || fieldName == "voltage") {
+                    fType = "Rexx";
+                }
+                if (!startsWith(fieldName, "$")) {
+                    recordFields += <fieldName, fType>;
+                }
+            }
+        }
+    }
+    if (size(recordFields) == 0) {
+        recordFields = [<"timestamp", "String">, <"metricName", "String">, <"metricValue", "Rexx">];
+    }
+    
     list[str] code = [];
     code += "package <packageName>";
     code += "options binary";
@@ -76,16 +115,25 @@ void generateTest(str className, loc declsFile, loc testFile) {
     code += "    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]";
     code += "    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(\"normal\"), Rexx(\"\")]";
     code += "    ";
-    code += "    -- Build MetricRecord boundary instances";
+    code += "    -- Build <recordType> boundary instances";
     code += "    recordBounds = java.util.ArrayList()";
     code += "    recordBounds.add(null)";
     code += "    loop tsVal over stringBounds";
     code += "      loop nameVal over stringBounds";
     code += "        loop valVal over doubleBounds";
-    code += "          rec = MetricRecord()";
-    code += "          if tsVal \\= \"null\" then rec.timestamp = String tsVal";
-    code += "          if nameVal \\= \"null\" then rec.metricName = String nameVal";
-    code += "          rec.metricValue = valVal";
+    code += "          rec = <recordType>()";
+    
+    int strVarIdx = 1;
+    for (f <- recordFields) {
+        if (f.typeName == "String") {
+            str loopVar = (strVarIdx % 2 == 1) ? "tsVal" : "nameVal";
+            code += "          if <loopVar> \\= \"null\" then rec.<f.name> = String <loopVar>";
+            strVarIdx += 1;
+        } else if (f.typeName == "Rexx") {
+            code += "          rec.<f.name> = valVal";
+        }
+    }
+    
     code += "          recordBounds.add(rec)";
     code += "        end";
     code += "      end";
@@ -103,7 +151,7 @@ void generateTest(str className, loc declsFile, loc testFile) {
         for (i <- [0..size(m.params)]) {
             str paramType = m.params[i];
             str varName = "<m.name>_p<i+1>";
-            str boundaryList = getBoundaryList(paramType, m.name, i);
+            str boundaryList = getBoundaryList(paramType, m.name, i, recordType);
             
             str indentStr = left("", indent, " ");
             code += "<indentStr>loop val<i+1> over <boundaryList>";
@@ -112,8 +160,8 @@ void generateTest(str className, loc declsFile, loc testFile) {
             // Casting/null check logic
             if (contains(paramType, "String")) {
                 code += "<indentStr>  if val<i+1> \\= \"null\" then <varName> = String val<i+1>";
-            } else if (contains(paramType, "MetricRecord")) {
-                code += "<indentStr>  <varName> = MetricRecord val<i+1>";
+            } else if (recordType != "" && contains(paramType, recordType)) {
+                code += "<indentStr>  <varName> = <recordType> val<i+1>";
             } else {
                 code += "<indentStr>  <varName> = val<i+1>";
             }

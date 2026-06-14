@@ -222,6 +222,7 @@ func main() {
 	prompt.WriteString(report)
 
 	prompt.WriteString("\nGenerate the complete NetRexx source file meeting this specification.\n")
+	prompt.WriteString("IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Every method taking a 'dbPath = String' parameter MUST check `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory. Ensure this check wraps all JDBC code in those methods.\n")
 	prompt.WriteString("Reuse and align structural types where marked as [FOUND]. Synthesize all blocks marked as [MISSING].\n")
 	prompt.WriteString("Output ONLY the complete revised NetRexx source code. No explanations, no markdown block wrapping.\n")
 

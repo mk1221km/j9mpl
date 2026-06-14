@@ -426,6 +426,7 @@ func generateAndWritePrompt(projectDir, symbolContext, errMsg, sourceContext str
 	promptBuilder.WriteString(sourceContext)
 	promptBuilder.WriteString("\n```\n\n")
 	promptBuilder.WriteString("Correct the scope, type allocation, or syntax inside the target block.\n")
+	promptBuilder.WriteString("IMPORTANT: If the block contains database operations using a 'dbPath = String' parameter, you MUST ensure they are guarded with `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, to prevent creating database files in the current working directory named 'null'.\n")
 	promptBuilder.WriteString("Output ONLY the revised, complete NetRexx source block. Do not include markdown code block formatting or explanations outside the block.\n")
 
 	fmt.Println("\n=================== GENERATED SELF-CORRECTION PROMPT ===================")

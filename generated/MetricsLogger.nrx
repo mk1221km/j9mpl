@@ -7,7 +7,7 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 
-class MetricRecord private
+class MetricRecord shared
   properties public
     timestamp   = String
     metricName  = String
@@ -15,66 +15,78 @@ class MetricRecord private
 
 class MetricsLogger public
   method initDatabase(dbPath = String) public static
-    conn = Connection null
-    stmt = Statement null
-    do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      stmt = conn.createStatement()
-      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS system_metrics (timestamp TEXT, name TEXT, value REAL);")
-    catch ex = SQLException
-      ex.printStackTrace()
-    finally
+    if dbPath \= null & dbPath \= "null" then do
+      conn = Connection null
+      stmt = Statement null
       do
-        if stmt \= null then stmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
-        nop
+        Class.forName("org.sqlite.JDBC")
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        stmt = conn.createStatement()
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS system_metrics (timestamp TEXT, name TEXT, value REAL);")
+      catch ex = Exception
+        ex.printStackTrace()
+      finally
+        do
+          if stmt \= null then stmt.close()
+          if conn \= null then conn.close()
+        catch SQLException
+          nop
+        end
       end
     end
 
-  method logMetric(dbPath = String, rec = MetricRecord) public static
-    conn = Connection null
-    pstmt = PreparedStatement null
-    do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      pstmt = conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?);")
-      pstmt.setString(1, rec.timestamp)
-      pstmt.setString(2, rec.metricName)
-      pstmt.setDouble(3, double rec.metricValue)
-      pstmt.executeUpdate()
-    catch ex = SQLException
-      ex.printStackTrace()
-    finally
+  method logMetric(dbPath = String, record = MetricRecord) public static
+    if dbPath \= null & dbPath \= "null" & record \= null then do
+      conn = Connection null
+      pstmt = PreparedStatement null
       do
-        if pstmt \= null then pstmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
-        nop
+        Class.forName("org.sqlite.JDBC")
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        pstmt = conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?);")
+        pstmt.setString(1, record.timestamp)
+        pstmt.setString(2, record.metricName)
+        if record.metricValue \= null then
+          pstmt.setDouble(3, record.metricValue.todouble())
+        else
+          pstmt.setDouble(3, 0.0)
+        pstmt.executeUpdate()
+      catch ex = Exception
+        ex.printStackTrace()
+      finally
+        do
+          if pstmt \= null then pstmt.close()
+          if conn \= null then conn.close()
+        catch SQLException
+          nop
+        end
       end
     end
 
   method getAverageMetric(dbPath = String, name = String) public static returns Rexx
-    conn = Connection null
-    pstmt = PreparedStatement null
-    rs = ResultSet null
     avgVal = Rexx 0
-    do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?;")
-      pstmt.setString(1, name)
-      rs = pstmt.executeQuery()
-      if rs.next() then do
-        avgVal = Rexx(rs.getDouble(1))
-      end
-    catch ex = SQLException
-      ex.printStackTrace()
-    finally
+    if dbPath \= null & dbPath \= "null" & name \= null then do
+      conn = Connection null
+      pstmt = PreparedStatement null
+      rs = ResultSet null
       do
-        if rs \= null then rs.close()
-        if pstmt \= null then pstmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
-        nop
+        Class.forName("org.sqlite.JDBC")
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?;")
+        pstmt.setString(1, name)
+        rs = pstmt.executeQuery()
+        if rs.next() then do
+          avgVal = Rexx(rs.getDouble(1))
+        end
+      catch ex = Exception
+        ex.printStackTrace()
+      finally
+        do
+          if rs \= null then rs.close()
+          if pstmt \= null then pstmt.close()
+          if conn \= null then conn.close()
+        catch SQLException
+          nop
+        end
       end
     end
     return avgVal

@@ -1,0 +1,19 @@
+# Compiled class files
+*.class
+bin/com/
+generated/*.class
+
+# Databases and temporary fuzzing files
+*.db
+null
+&1
+
+# Temporary jobs workspaces
+jobs/
+
+# Local configuration and scratch files
+scratch/
+.context/errant_block_*.txt
+.context/self_correct_prompt.txt
+.context/model_output_raw.txt
+.context/extracted.sql

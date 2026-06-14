@@ -10,7 +10,7 @@ if {[llength $argv] < 1} {
 
 set nrxFile [file normalize [lindex $argv 0]]
 set projectDir [file dirname [file dirname [file normalize [info script]]]]
-set classpath "lib/NetRexxF.jar:target/dependency/sqlite-jdbc-3.45.1.0.jar:target/dependency/slf4j-api-1.7.36.jar"
+set classpath "bin:lib/NetRexxF.jar:target/dependency/sqlite-jdbc-3.45.1.0.jar:target/dependency/slf4j-api-1.7.36.jar"
 
 # Set CLASSPATH env variable for the child processes
 set env(CLASSPATH) "bin"
@@ -33,6 +33,27 @@ while {$retryCount < $maxRetries} {
     puts $result
 
     if {$status == 0} {
+        set isTest [string match "*Test.nrx" $nrxFile]
+        if {$isTest} {
+            puts "\[1.5/3\] Running sandboxed verification sweep..."
+            set className [file rootname [file tail $nrxFile]]
+            set fd [open $nrxFile r]
+            set content [read $fd]
+            close $fd
+            set pkg ""
+            if {[regexp -line {^\s*package\s+([a-zA-Z0-9_\.]+)} $content match pkgName]} {
+                set pkg "$pkgName."
+            }
+            set targetClass "$pkg$className"
+            set sandboxCmd [list systemd-run --user --scope --description=Factory-Fuzzer-Sandbox -p MemoryMax=512M -p CPUQuota=50% -p TasksMax=100 ./bin/sandbox_exec.sh $targetClass]
+            set sandboxStatus [catch {exec {*}$sandboxCmd 2>@1} sandboxResult]
+            if {$sandboxStatus != 0} {
+                puts "\[ERROR\] Sandboxed execution sweep failed: $sandboxResult"
+                exit 1
+            }
+            puts "  -> Sandboxed execution sweep completed successfully."
+        }
+
         puts "=========================================================="
         puts " \[SUCCESS\] Zero-error build achieved!"
         puts "=========================================================="

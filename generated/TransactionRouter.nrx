@@ -7,7 +7,9 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 
-class TransactionRecord private
+class TransactionRecordDummy private
+
+class TransactionRecord shared
   properties public
     txId     = String
     sender   = String
@@ -20,16 +22,15 @@ class TransactionRouter public
     conn = Connection null
     stmt = Statement null
     do
+      Class.forName("org.sqlite.JDBC")
       conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
       stmt = conn.createStatement()
       stmt.executeUpdate("CREATE TABLE IF NOT EXISTS routing_rules (min_amount REAL, priority TEXT, channel TEXT, PRIMARY KEY (min_amount, priority));")
       stmt.executeUpdate("CREATE TABLE IF NOT EXISTS transaction_log (tx_id TEXT PRIMARY KEY, sender TEXT, receiver TEXT, amount REAL, channel TEXT, status TEXT);")
-      
-      -- Populate default routing rules
       stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (0.0, 'LOW', 'ACH');")
       stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (0.0, 'HIGH', 'WIRE');")
       stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (10000.0, 'HIGH', 'SWIFT');")
-    catch ex = SQLException
+    catch ex = Exception
       ex.printStackTrace()
     finally
       do
@@ -50,6 +51,7 @@ class TransactionRouter public
     
     if record \= null then do
       do
+        Class.forName("org.sqlite.JDBC")
         conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
         
         txIdVal = String ""
@@ -63,25 +65,20 @@ class TransactionRouter public
         if record.receiver \= null then receiverVal = record.receiver
         
         amountVal = double 0.0
-        if record.amount \= null then do
-          amountVal = double record.amount
-        end
+        if record.amount \= null then amountVal = record.amount.todouble()
         
         priorityVal = String ""
         if record.priority \= null then priorityVal = record.priority
         
-        -- Query channel from routing rules
         pstmtSelect = conn.prepareStatement("SELECT channel FROM routing_rules WHERE priority = ? AND min_amount <= ? ORDER BY min_amount DESC LIMIT 1;")
         pstmtSelect.setString(1, priorityVal)
         pstmtSelect.setDouble(2, amountVal)
-        
         rs = pstmtSelect.executeQuery()
         if rs.next() then do
           channel = rs.getString(1)
           status = "COMPLETED"
         end
         
-        -- Insert into transaction log
         pstmtInsert = conn.prepareStatement("INSERT OR REPLACE INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?);")
         pstmtInsert.setString(1, txIdVal)
         pstmtInsert.setString(2, senderVal)
@@ -91,7 +88,7 @@ class TransactionRouter public
         pstmtInsert.setString(6, status)
         pstmtInsert.executeUpdate()
         
-      catch ex = SQLException
+      catch ex = Exception
         ex.printStackTrace()
       finally
         do
@@ -112,6 +109,7 @@ class TransactionRouter public
     rs = ResultSet null
     count = Rexx 0
     do
+      Class.forName("org.sqlite.JDBC")
       conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
       pstmt = conn.prepareStatement("SELECT COUNT(*) FROM transaction_log WHERE status = ?;")
       
@@ -123,7 +121,7 @@ class TransactionRouter public
       if rs.next() then do
         count = Rexx(rs.getInt(1))
       end
-    catch ex = SQLException
+    catch ex = Exception
       ex.printStackTrace()
     finally
       do
@@ -138,11 +136,8 @@ class TransactionRouter public
 
   method main(args = String[]) public static
     dbFile = "generated/routing.db"
-    
-    -- Initialize routing table
     initRoutingTable(dbFile)
     
-    -- Create test transaction records
     rec1 = TransactionRecord()
     rec1.txId = "tx1"
     rec1.sender = "Alice"
@@ -164,7 +159,6 @@ class TransactionRouter public
     rec3.amount = Rexx(12000)
     rec3.priority = "HIGH"
     
-    -- Route transactions
     c1 = routeTransaction(dbFile, rec1)
     c2 = routeTransaction(dbFile, rec2)
     c3 = routeTransaction(dbFile, rec3)
@@ -173,6 +167,5 @@ class TransactionRouter public
     say "tx2 routed to: " || c2
     say "tx3 routed to: " || c3
     
-    -- Verify log totals
     completedCount = getTransactionCount(dbFile, "COMPLETED")
     say "Completed transactions count: " || completedCount
