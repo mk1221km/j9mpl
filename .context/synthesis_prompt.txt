@@ -1,0 +1,39 @@
+=== SPECIFICATION INGEST SYNTHESIS PROMPT ===
+Target Specification: System Metrics SQLite Logger Specification
+
+Architectural Invariants & Constraints:
+- **Database Engine:** SQLite
+- **Target Table:** `system_metrics`
+- **Table Schema:**
+- `timestamp` TEXT
+- `name` TEXT
+- `value` REAL
+
+Target Class Specifications:
+Class: MetricRecord
+  Fields:
+    - timestamp (String)
+    - metricName (String)
+    - metricValue (Rexx)
+
+Class: MetricsLogger
+  Methods:
+    - initDatabase(dbPath: String)
+    - logMetric(dbPath: String, record: MetricRecord)
+    - getAverageMetric(dbPath: String, name: String)
+    - main(args: String[])
+
+Ledger Coverage Analysis:
+=== Codebase Existence Ledger Analysis ===
+[FOUND] Class MetricRecord exists in codebase (File: /home/me/code/j9mpl/generated/MetricsLogger.java, URI: |java+class:///com/factory/metrics/MetricRecord|)
+
+[FOUND] Class MetricsLogger exists in codebase (File: /home/me/code/j9mpl/generated/MetricsLogger.java, URI: |java+class:///com/factory/metrics/MetricsLogger|)
+  - [FOUND] Method MetricsLogger.initDatabase (URI: |java+method:///com/factory/metrics/MetricsLogger/initDatabase(java.lang.String)|)
+  - [FOUND] Method MetricsLogger.logMetric (URI: |java+method:///com/factory/metrics/MetricsLogger/logMetric(java.lang.String,com.factory.metrics.MetricRecord)|)
+  - [FOUND] Method MetricsLogger.getAverageMetric (URI: |java+method:///com/factory/metrics/MetricsLogger/getAverageMetric(java.lang.String,java.lang.String)|)
+  - [FOUND] Method MetricsLogger.main (URI: |java+method:///com/factory/metrics/MetricsLogger/main(java.lang.String%5B%5D)|)
+
+
+Generate the complete NetRexx source file meeting this specification.
+Reuse and align structural types where marked as [FOUND]. Synthesize all blocks marked as [MISSING].
+Output ONLY the complete revised NetRexx source code. No explanations, no markdown block wrapping.
