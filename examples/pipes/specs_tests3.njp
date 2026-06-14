@@ -1,0 +1,224 @@
+/* specs_tests.njp */
+
+/*
+  22/12/31 Documentation update. Jeff Hennick
+  20/ 3/28 Jeff Hennick
+*/
+
+pipe (specs_tests3)
+
+ o: faninany |
+    sort |
+    specs 2-* 1 |
+    cons ?
+
+-- specs numberrange  ?
+   literal one two   three    four five six |
+   specs 12-24 1 |
+   c1: compare any ~2# 1 specs numberrange  ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal hree    four |
+   c1: ?
+
+-- specs numberrange  ?
+   literal one two   three    four five six |
+   specs /Njpipes: Great!/ 1 |
+   c2: compare any ~2# 2 specs numberrange  ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal Njpipes: Great! |
+   c2: ?
+
+-- specs Xhexnumber  ?
+   specs X4b3A5b 1 |
+   c3: compare any ~2# 3 specs Xhexnumber  ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal K:[ |
+   c3: ?
+
+-- specs Hhexnumber  ?
+   specs h4b4A5b 1 |
+   c4: compare any ~2# 4 specs Hhexnumber  ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal KJ[ |
+   c4: ?
+
+-- specs Bbinarynumber ?
+   specs b0110110001110011 1 |
+   c5: compare any ~2# 5 specs Bbinarynumber ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal ls |
+   c5: ?
+
+-- specs RecordNumber ?
+   literal one;two;three;four;five;six |
+   split ; |
+   specs recno 1 word 1 nw |
+   c6: compare any ~2# 6 specs RecordNumber ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal          1 one;         2 two;         3 three;         4 four;         5 five;         6 six |
+   split ; |
+   c6: ?
+
+-- specs Number ?
+   literal one;two;three;four;five;six |
+   split ; |
+   specs number 1 word 1 nw |
+   c7: compare any ~2# 7 specs Number ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal          1 one;         2 two;         3 three;         4 four;         5 five;         6 six |
+   split ; |
+   c7: ?
+
+-- specs RecordNumber From ?
+   literal one;two;three;four;five;six |
+   split ; |
+   specs recno from 4 1 word 1 nw |
+   c8: compare any ~2# 8 specs RecordNumber From ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal          4 one;         5 two;         6 three;         7 four;         8 five;         9 six |
+   split ; |
+   c8: ?
+
+-- specs RecordNumber By ?
+   literal one;two;three;four;five;six |
+   split ; |
+   specs recno by 3 1 word 1 nw |
+   c9: compare any ~2# 9 specs RecordNumber By ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal          1 one;         4 two;         7 three;        10 four;        13 five;        16 six |
+   split ; |
+   c9: ?
+
+-- specs RecordNumber From By ?
+   literal one;two;three;four;five;six |
+   split ; |
+   specs recno from 4 by 3 1 word 1 nw |
+   c10: compare any ~2#10 specs RecordNumber From By ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal          4 one;         7 two;        10 three;        13 four;        16 five;        19 six |
+   split ; |
+   c10:
+
+
+/** specs
+            +-STOP--ALLEOF----+ (3)
+ >>--SPECs--+-----------------+-------+-----------------+-------->
+            +-STOP-+-ANYEOF-+-+ (3)   +-COUNTERS-number-+ (12)
+                   +-n------+   (3)
+
+
+       v------------------------------------------------------------+
+   >---+--+-| Group |--------------------------+--+--------------+--+--><
+          +-READ-------------------------------+  +-(1),-(4)(13)-+
+          +-READSTOP---------------------------+ (3)
+          +-WRITE------------------------------+
+          +-SELECT-+-streamnum-+---------------+
+          |        +-streamid--+               |
+          +-OUTSTREAM--streamnum---------------+
+          +-PAD--+-char----+-------------------+
+          |      +-hexchar-+                   |
+          |      +-BLANK---+                   |
+          |      +-SPACE---+                   |
+          +-+-WORDSEParator---+--+--char-----+-+  (7)
+            +-WS--------------+  +-hexchar---+
+            +-FIELDSEparator--+  +-BLANK-----+
+            +-FS--------------+  +-TAB-------+
+                                 +-hexstring-+
+                                 +-qword-----+    (4)(6)
+Group:
+ |--| Id |--| Input |--| Conversion |--| Output |--| Alignment |--|
+
+Id:
+ |-letter--(14)--:-(2)--|
+
+Input:
+ |--+-Words-(1)-wnumberrange----------------------+-------|
+    +-Fields-(1)-fnumberrange---------------------+
+    +-cnumberrange--------------------------------+
+    +-/string/------------------------------------+
+    +-Xhexstring----------------------------------+
+    +-Hhexstring----------------------------------+
+    +-Bbinstring----------------------------------+
+    |            +-FROM--1-------+ +-BY--1-----+  |
+    +-+-RECNO--+-+---------------+-+-----------+--+  (8)
+    | +-NUMBER-+ +-FROM--fromnum-+ +-BY--bynum-+  |
+    +-TODclock------------------------------------+  (3)
+
+Conversion:
+ |-+-------+--+------------------------------+------|
+   +-STRIP-+  +-B2C--------------------------+
+              +-B2X--------------------------+ (4)
+              +-C2B--------------------------+
+              +-C2D--------------------------+
+              +-C2F--------------------------+ (3)
+              +-C2I--------------------------+ (3)
+              +-C2P-+------------+-----------+ (3)
+              |     +-(2)(scale)-+           | (3)
+              +-C2V--------------------------+ (3)
+              +-C2X--------------------------+
+              +-D2C--------------------------+
+              +-D2X--------------------------+ (4)
+              +-F2C--------------------------+ (3)
+              +-I2C--------------------------+ (3)
+              +-P2C-+------------+-----------+ (3)
+              |     +-(2)(scale)-+           | (3)
+              +-V2C--------------------------+ (3)
+              +-X2B--------------------------+ (4)
+              +-X2C--------------------------+
+              +-X2D--------------------------+ (4)
+              +-F2T--------------------------+ (3)
+              +-LOWER------------------------+ (4)
+              +-UPPER------------------------+ (4)
+              +-STRING-----------------------+ (4)(11)
+              +-+-NETREXX-+-delimited_string-+ (4)(10)
+                +-NR------+                    (4)
+Output:
+ |--+-Next-+-------+-------+--|
+    |      +-(2).n-+       |
+    +-NEXTWord-+-+-------+-+
+    +-NWord----+ +-(2).n-+ |
+    +-columnrange----------+
+    +-.--------------------+
+
+Alignment:
+    +-Left---+
+ |--+--------+--|
+    +-Center-+
+    +-Right--+
+
+Notes:
+ (1) Blanks are optional in this position.
+ (2) Blanks are not allowed here.
+ (3) CMS only. Not yet implemented in njpipes
+ (4) NetRexx only. Not yet implemented in CMS
+ (5) NetRexx only: READ is giving the same output as READSTOP when
+     the streams are different length.
+ (6) A Qword is an optionally quoted word, with single or double marks.
+     If it contains spaces or begins with a quote mark, it must be quoted.
+     It can not begin with a space (the quote mark will be considered
+     a single character, and rest jibberish).
+     If is unquoted and an even number of hexadecimal characters,
+     it will be used as a hexchar or hexstring.
+ (7) NetRexx Pipelines ONLY: a single quote character is NOT allowed,
+     use "'" or '"' as appropriate.
+ (8) CMS Pipelines, without documenting it, places this right by defualt
+     NetRexx Pipelines follows the documentation and places this left by defualt.
+     Specify the alignment you want to override these defaults.
+ (9) CMS has a mini-programming language built in. It uses Control Breaks and
+     Structured Data.
+     NetRexx does not yet have these, but see the NETREXX converter (10).
+(10) The delimited string is any valid NetRexx code. [Yes, you can get in trouble!]
+     It is put into a method and executed for each record.  The selected input data
+     is in the variable DATA. The returned string is output.  The persistent
+     variable array COUNTER[] is available for your use. Each COUNTER is
+     initially 0, but can hold any NetRexx value, including strings. COUNTERs
+     are shared across all NETREXX converters in a stage. Index can be number or string.
+     Fields identified by a fieldid are accessed as field["id"] when the quotes are
+     required, the id is a single letter, case is respected
+(11) The data is processed by the toString() method.
+(12) CMS Only. NetRexx ignores COUNTERS n; it has an unlimited number. See the NETREXX converter.
+(13) NetRexx Only. A comma may be used to separate groups for readability.
+(14) Letter is a single character, a-zA-Z.  Case is respected. BLANK is not permited between
+     letter and : .  The resulting data is available in the NETREXX code as field["letter"].
+
+**/

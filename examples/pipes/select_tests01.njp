@@ -1,0 +1,96 @@
+/* select -- choose Records using Rexx Parse  */
+
+/*
+  24/12/14 Split off multi tests to select_tests02.  Jeff Hennick
+  23/ 5/29 New.  Jeff Hennick
+*/
+
+pipe (select_tests01)
+
+ o: faninany |
+    sort singleok |
+    specs 2-* 1 |
+    cons ?
+
+
+-- select dstring ?
+   literal aza;e2g;hij |
+   split ; |
+   select /return rec.pos('2') > 0/ |
+   c1: compare any ~2# 1 SELECT dstring ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal e2g |
+   split ; |
+   c1: ?
+
+-- select dstring (secondary) ?
+   literal aza;e2g;hij |
+   split ; |
+   p2: select /return rec.pos('2') > 0/ ?
+   p2: |
+   c2: compare any ~2# 2 select dstring (secondary) ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal aza;hij |
+   split ; |
+   c2: ?
+
+-- select dstring (prev) ?
+   literal aza;e2g;h2i |
+   split ; |
+   select /parse rec 2 r +1;parse prev 2 p +1; return r \= p/ |
+   c3: compare any ~2# 3 select dstring (prev) ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal aza;e2g |
+   split ; |
+   c3: ?
+
+-- select tf dstring ?
+   literal aza;e2g;hij |
+   split ; |
+   select tf /return rec.pos('2') > 0/ |
+   c4: compare any ~2# 4 SELECT tf dstring ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal e2g |
+   split ; |
+   c4: ?
+
+-- select true dstring ?
+   literal aza;e2g;hij |
+   split ; |
+   select true /return rec.pos('2') > 0/ |
+   c5: compare any ~2# 5 SELECT true dstring ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal e2g |
+   split ; |
+   c5: ?
+
+-- select truefalse dstring ?
+   literal aza;e2g;hij |
+   split ; |
+   select truefalse /return rec.pos('2') > 0/ |
+   c6: compare any ~2# 6 SELECT truefalse dstring ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal e2g |
+   split ; |
+   c6: ?
+
+-- select not dstring ?
+   literal aza;e2g;hij |
+   split ; |
+   select not /return rec.pos('2') > 0/ |
+   c7: compare any ~2# 7 SELECT not dstring ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal aza;hij |
+   split ; |
+   c7: ?
+
+-- select dstring -- variable ?
+   literal aza;e2g;hij |
+   split ; |
+   select  /if c = '' then c = 0; c = c + 1; if c = 3 then r = 1 else r = 0; return r/ |
+   c8: compare any ~2# 8 SELECT dstring -- variable ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal hij |
+   split ; |
+   c8: ?
+

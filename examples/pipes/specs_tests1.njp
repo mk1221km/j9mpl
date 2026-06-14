@@ -1,0 +1,256 @@
+/* specs_tests1.njp */
+
+/*
+  22/12/31 Documentation update. Jeff Hennick
+  22/12/12 Restored READ, removed READSTOP. Documentation update. Jeff Hennick
+  20/ 7/18 Removed restriction on #5 with bug fix of stage. Jeff Hennick
+  20/ 3/28 Jeff Hennick
+*/
+
+pipe (specs_tests1)
+
+ o: faninany |
+    sort |
+    specs 2-* 1 |
+    cons ?
+
+-- specs stage (simple) ?
+   specs /Test1/ 1 |
+   c1: compare any ~2# 1 specs stage (simple) ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal Test1|
+   c1: ?
+
+-- IBM Example 1, p546 ?
+   literal The rain |
+   specs 1-* 5 |
+   c2: compare any ~2# 2 IBM Example 1, p546 ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal     The rain |
+   c2: ?
+
+-- IBM Example 1a, p547 ?
+-- note EBCDIC x5c is *, ASCII is single \\ ?
+   literal The rain |
+   specs pad + 1-* 5 /in Spain/ nextword x5c 25 |
+   c3: compare any ~2# 3 IBM Example 1a, p547 ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal ++++The rain in Spain+++\\ |
+   split ; |
+   c3: ?
+
+-- IBM Example 2, p548 ?
+-- ASCII results ?
+   literal LR 1,2;LR 3,4;ST 2,3;A  1,4 |
+   split ; |
+   specs 1-6 c2x 1 recno next |
+   c4: compare any ~2# 4 IBM Example 2, p548 ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal 4C5220312C32         1;4C5220332C34         2;535420322C33         3;412020312C34         4 |
+   split ; |
+   c4: ?
+
+-- IBM Example 3, p549 ?
+   literal Checking Account 2345-00;Savings Account 9876-03;Money Market 5645-09;Money Market 1289-09;Savings Account 5901-03 |
+   split ; |
+   s5: specs select 1 1.9 1.9 right /transferred to/ nextword select 0 words1.2 nextword |
+   c5: compare any ~2# 5 IBM Example 3, p549 ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal    900.00 transferred to Checking Account;     5.00 transferred to Savings Account; 6,600.00 transferred to Money Market; 7,200.00 transferred to Money Market;    50.00 transferred to Savings Account |
+   split ; |
+   change /_/ / / |
+   c5: ?
+   literal 900.00;5.00;6,600.00;7,200.00;50.00 |
+   split ; |
+   s5: ?
+
+-- IBM Example 4, p550 requires real files ?
+   literal 2# 6 IBM Example 4, p550 requires real files |
+   o: ?
+
+-- IBM Example 5, p553 requires STOPANY ?
+   literal 2# 7 IBM Example 5, p553 requires STOPANY :: Not yet implemented. **** |
+   o: ?
+
+-- IBM Example 0, p542 ?
+   literal ABCD |
+   literal 123 |
+   specs 1-* 1 read 1-3 4 |
+   c8: compare any ~2# 8 IBM Example 0, p542 ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal 123ABC |
+   c8: ?
+
+-- IBM Example 0a, p543 (readstop) ?
+   literal 2# 9 **** READSTOP is not yet implemented. |
+   o: ?
+--  literal a |
+--   dup 2 |
+--   specs 1-* 1 readstop 1-* nw /**/ nw |
+--   c9: compare any ~2# 9 IBM Example 0a, p543 (readstop)~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+--   o: ?
+--   literal a a **;a |
+--   split ; |
+--   c9: ?
+
+-- IBM Example 0b, p543 (read) ?
+   o: ?
+--   literal a |
+--   dup 2 |
+--   specs 1-* 1 read 1-* nw /**/ nw |
+--   c10: compare any ~2#10 IBM Example 0b, p543 (read) ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+--   o: ?
+--   literal a a **;a ** |
+--   split ; |
+--   c10: ?
+
+-- IBM Example 0c, p543 (write) ?
+   literal ABC123 |
+   specs 1-3 1 write 4-6 4 |
+   c11: compare any ~2#11 IBM Example 0c, p543 (write) ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal ABC;   123 |
+   split ; |
+   c11: ?
+
+-- IBM Example 0d, p544 (pad left) ?
+   literal 3.14159 |
+   specs pad 0 1-* 5  |
+   c12: compare any ~2#12 IBM Example 0d, p544 (pad left) ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal 00003.14159 |
+   split ; |
+   c12: ?
+
+-- IBM Example 0d, p544 (pad right) ?
+   literal Why |
+   specs pad ! 1-* 1-10 |
+   c13: compare any ~2#13 IBM Example 0d, p544 (pad right) ~ equal ~*OK*~ notequal ~**FAIL**  at rec \\c col \\b.~ less /Less:\nActual:\n\\p\nExpected:\n\\s\n/ more /More:\nActual:\n\\p\nExpected:\n\\s\n/ |
+   o: ?
+   literal Why!!!!!!! |
+   split ; |
+   c13:
+
+
+/** specs
+            +-STOP--ALLEOF----+ (3)
+ >>--SPECs--+-----------------+-------+-----------------+-------->
+            +-STOP-+-ANYEOF-+-+ (3)   +-COUNTERS-number-+ (12)
+                   +-n------+   (3)
+
+
+       v------------------------------------------------------------+
+   >---+--+-| Group |--------------------------+--+--------------+--+--><
+          +-READ-------------------------------+  +-(1),-(4)(13)-+
+          +-READSTOP---------------------------+ (3)
+          +-WRITE------------------------------+
+          +-SELECT-+-streamnum-+---------------+
+          |        +-streamid--+               |
+          +-OUTSTREAM--streamnum---------------+
+          +-PAD--+-char----+-------------------+
+          |      +-hexchar-+                   |
+          |      +-BLANK---+                   |
+          |      +-SPACE---+                   |
+          +-+-WORDSEParator---+--+--char-----+-+  (7)
+            +-WS--------------+  +-hexchar---+
+            +-FIELDSEparator--+  +-BLANK-----+
+            +-FS--------------+  +-TAB-------+
+                                 +-hexstring-+
+                                 +-qword-----+    (4)(6)
+Group:
+ |--| Id |--| Input |--| Conversion |--| Output |--| Alignment |--|
+
+Id:
+ |-letter--(14)--:-(2)--|
+
+Input:
+ |--+-Words-(1)-wnumberrange----------------------+-------|
+    +-Fields-(1)-fnumberrange---------------------+
+    +-cnumberrange--------------------------------+
+    +-/string/------------------------------------+
+    +-Xhexstring----------------------------------+
+    +-Hhexstring----------------------------------+
+    +-Bbinstring----------------------------------+
+    |            +-FROM--1-------+ +-BY--1-----+  |
+    +-+-RECNO--+-+---------------+-+-----------+--+  (8)
+    | +-NUMBER-+ +-FROM--fromnum-+ +-BY--bynum-+  |
+    +-TODclock------------------------------------+  (3)
+
+Conversion:
+ |-+-------+--+------------------------------+------|
+   +-STRIP-+  +-B2C--------------------------+
+              +-B2X--------------------------+ (4)
+              +-C2B--------------------------+
+              +-C2D--------------------------+
+              +-C2F--------------------------+ (3)
+              +-C2I--------------------------+ (3)
+              +-C2P-+------------+-----------+ (3)
+              |     +-(2)(scale)-+           | (3)
+              +-C2V--------------------------+ (3)
+              +-C2X--------------------------+
+              +-D2C--------------------------+
+              +-D2X--------------------------+ (4)
+              +-F2C--------------------------+ (3)
+              +-I2C--------------------------+ (3)
+              +-P2C-+------------+-----------+ (3)
+              |     +-(2)(scale)-+           | (3)
+              +-V2C--------------------------+ (3)
+              +-X2B--------------------------+ (4)
+              +-X2C--------------------------+
+              +-X2D--------------------------+ (4)
+              +-F2T--------------------------+ (3)
+              +-LOWER------------------------+ (4)
+              +-UPPER------------------------+ (4)
+              +-STRING-----------------------+ (4)(11)
+              +-+-NETREXX-+-delimited_string-+ (4)(10)
+                +-NR------+                    (4)
+Output:
+ |--+-Next-+-------+-------+--|
+    |      +-(2).n-+       |
+    +-NEXTWord-+-+-------+-+
+    +-NWord----+ +-(2).n-+ |
+    +-columnrange----------+
+    +-.--------------------+
+
+Alignment:
+    +-Left---+
+ |--+--------+--|
+    +-Center-+
+    +-Right--+
+
+Notes:
+ (1) Blanks are optional in this position.
+ (2) Blanks are not allowed here.
+ (3) CMS only. Not yet implemented in njpipes
+ (4) NetRexx only. Not yet implemented in CMS
+ (5) NetRexx only: READ is giving the same output as READSTOP when
+     the streams are different length.
+ (6) A Qword is an optionally quoted word, with single or double marks.
+     If it contains spaces or begins with a quote mark, it must be quoted.
+     It can not begin with a space (the quote mark will be considered
+     a single character, and rest jibberish).
+     If is unquoted and an even number of hexadecimal characters,
+     it will be used as a hexchar or hexstring.
+ (7) NetRexx Pipelines ONLY: a single quote character is NOT allowed,
+     use "'" or '"' as appropriate.
+ (8) CMS Pipelines, without documenting it, places this right by defualt
+     NetRexx Pipelines follows the documentation and places this left by defualt.
+     Specify the alignment you want to override these defaults.
+ (9) CMS has a mini-programming language built in. It uses Control Breaks and
+     Structured Data.
+     NetRexx does not yet have these, but see the NETREXX converter (10).
+(10) The delimited string is any valid NetRexx code. [Yes, you can get in trouble!]
+     It is put into a method and executed for each record.  The selected input data
+     is in the variable DATA. The returned string is output.  The persistent
+     variable array COUNTER[] is available for your use. Each COUNTER is
+     initially 0, but can hold any NetRexx value, including strings. COUNTERs
+     are shared across all NETREXX converters in a stage. Index can be number or string.
+     Fields identified by a fieldid are accessed as field["id"] when the quotes are
+     required, the id is a single letter, case is respected
+(11) The data is processed by the toString() method.
+(12) CMS Only. NetRexx ignores COUNTERS n; it has an unlimited number. See the NETREXX converter.
+(13) NetRexx Only. A comma may be used to separate groups for readability.
+(14) Letter is a single character, a-zA-Z.  Case is respected. BLANK is not permited between
+     letter and : .  The resulting data is available in the NETREXX code as field["letter"].
+
+**/
