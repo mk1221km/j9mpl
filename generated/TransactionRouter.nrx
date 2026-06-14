@@ -1,0 +1,178 @@
+package com.factory.routing
+options binary
+import java.sql.DriverManager
+import java.sql.Connection
+import java.sql.Statement
+import java.sql.PreparedStatement
+import java.sql.ResultSet
+import java.sql.SQLException
+
+class TransactionRecord private
+  properties public
+    txId     = String
+    sender   = String
+    receiver = String
+    amount   = Rexx
+    priority = String
+
+class TransactionRouter public
+  method initRoutingTable(dbPath = String) public static
+    conn = Connection null
+    stmt = Statement null
+    do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      stmt = conn.createStatement()
+      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS routing_rules (min_amount REAL, priority TEXT, channel TEXT, PRIMARY KEY (min_amount, priority));")
+      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS transaction_log (tx_id TEXT PRIMARY KEY, sender TEXT, receiver TEXT, amount REAL, channel TEXT, status TEXT);")
+      
+      -- Populate default routing rules
+      stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (0.0, 'LOW', 'ACH');")
+      stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (0.0, 'HIGH', 'WIRE');")
+      stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (10000.0, 'HIGH', 'SWIFT');")
+    catch ex = SQLException
+      ex.printStackTrace()
+    finally
+      do
+        if stmt \= null then stmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
+    end
+
+  method routeTransaction(dbPath = String, record = TransactionRecord) public static returns String
+    conn = Connection null
+    pstmtSelect = PreparedStatement null
+    pstmtInsert = PreparedStatement null
+    rs = ResultSet null
+    channel = String "NONE"
+    status = String "FAILED"
+    
+    if record \= null then do
+      do
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        
+        txIdVal = String ""
+        if record.txId \= null then txIdVal = record.txId
+        else txIdVal = java.util.UUID.randomUUID().toString()
+        
+        senderVal = String ""
+        if record.sender \= null then senderVal = record.sender
+        
+        receiverVal = String ""
+        if record.receiver \= null then receiverVal = record.receiver
+        
+        amountVal = double 0.0
+        if record.amount \= null then do
+          amountVal = double record.amount
+        end
+        
+        priorityVal = String ""
+        if record.priority \= null then priorityVal = record.priority
+        
+        -- Query channel from routing rules
+        pstmtSelect = conn.prepareStatement("SELECT channel FROM routing_rules WHERE priority = ? AND min_amount <= ? ORDER BY min_amount DESC LIMIT 1;")
+        pstmtSelect.setString(1, priorityVal)
+        pstmtSelect.setDouble(2, amountVal)
+        
+        rs = pstmtSelect.executeQuery()
+        if rs.next() then do
+          channel = rs.getString(1)
+          status = "COMPLETED"
+        end
+        
+        -- Insert into transaction log
+        pstmtInsert = conn.prepareStatement("INSERT OR REPLACE INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?);")
+        pstmtInsert.setString(1, txIdVal)
+        pstmtInsert.setString(2, senderVal)
+        pstmtInsert.setString(3, receiverVal)
+        pstmtInsert.setDouble(4, amountVal)
+        pstmtInsert.setString(5, channel)
+        pstmtInsert.setString(6, status)
+        pstmtInsert.executeUpdate()
+        
+      catch ex = SQLException
+        ex.printStackTrace()
+      finally
+        do
+          if rs \= null then rs.close()
+          if pstmtSelect \= null then pstmtSelect.close()
+          if pstmtInsert \= null then pstmtInsert.close()
+          if conn \= null then conn.close()
+        catch SQLException
+          nop
+        end
+      end
+    end
+    return channel
+
+  method getTransactionCount(dbPath = String, status = String) public static returns Rexx
+    conn = Connection null
+    pstmt = PreparedStatement null
+    rs = ResultSet null
+    count = Rexx 0
+    do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      pstmt = conn.prepareStatement("SELECT COUNT(*) FROM transaction_log WHERE status = ?;")
+      
+      statusVal = String ""
+      if status \= null then statusVal = status
+      pstmt.setString(1, statusVal)
+      
+      rs = pstmt.executeQuery()
+      if rs.next() then do
+        count = Rexx(rs.getInt(1))
+      end
+    catch ex = SQLException
+      ex.printStackTrace()
+    finally
+      do
+        if rs \= null then rs.close()
+        if pstmt \= null then pstmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
+    end
+    return count
+
+  method main(args = String[]) public static
+    dbFile = "generated/routing.db"
+    
+    -- Initialize routing table
+    initRoutingTable(dbFile)
+    
+    -- Create test transaction records
+    rec1 = TransactionRecord()
+    rec1.txId = "tx1"
+    rec1.sender = "Alice"
+    rec1.receiver = "Bob"
+    rec1.amount = Rexx(500)
+    rec1.priority = "LOW"
+    
+    rec2 = TransactionRecord()
+    rec2.txId = "tx2"
+    rec2.sender = "Charlie"
+    rec2.receiver = "Dave"
+    rec2.amount = Rexx(1500)
+    rec2.priority = "HIGH"
+    
+    rec3 = TransactionRecord()
+    rec3.txId = "tx3"
+    rec3.sender = "Eve"
+    rec3.receiver = "Frank"
+    rec3.amount = Rexx(12000)
+    rec3.priority = "HIGH"
+    
+    -- Route transactions
+    c1 = routeTransaction(dbFile, rec1)
+    c2 = routeTransaction(dbFile, rec2)
+    c3 = routeTransaction(dbFile, rec3)
+    
+    say "tx1 routed to: " || c1
+    say "tx2 routed to: " || c2
+    say "tx3 routed to: " || c3
+    
+    -- Verify log totals
+    completedCount = getTransactionCount(dbFile, "COMPLETED")
+    say "Completed transactions count: " || completedCount

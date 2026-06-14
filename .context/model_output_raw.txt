@@ -1,34 +1,72 @@
-I will start by finding the file that contains the code we need to fix.
-I will search for `.nrx` files or find the metrics logger source code files in the workspace.
-I will view the contents of the MetricsLogger.nrx file to check the context of getAverageMetric.
-I will check the generated Java code to see how it translates.
-I will list files in the generated/ directory.
-I will search for compilation commands or build scripts in the workspace.
-I will compile the NetRexx file using NetRexxC.sh to see the diagnostic output.
-I will edit `MetricsLogger.nrx` to correct the variable name and then compile it to ensure there are no compilation errors.
-I will compile the file to see if the error is resolved.
-  method getAverageMetric(dbPath = String, name = String) public static returns Rexx
+I will wait for the compilation task to finish and report its output.
+I will wait for the RuntimeException compile task to finish.
+I will wait for the TransactionRouter compilation to finish.
+  method routeTransaction(dbPath = String, record = TransactionRecord) public static returns String
     conn = Connection null
-    pstmt = PreparedStatement null
+    pstmtSelect = PreparedStatement null
+    pstmtInsert = PreparedStatement null
     rs = ResultSet null
-    avgVal = Rexx 0
-    do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?;")
-      pstmt.setString(1, name)
-      rs = pstmt.executeQuery()
-      if rs.next() then do
-        avgVal = Rexx(rs.getDouble(1))
-      end
-    catch ex = SQLException
-      ex.printStackTrace()
-    finally
+    channel = String "NONE"
+    status = String "FAILED"
+    
+    if record \= null then do
       do
-        if rs \= null then rs.close()
-        if pstmt \= null then pstmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
-        nop
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        
+        txIdVal = String ""
+        if record.txId \= null then txIdVal = record.txId
+        else txIdVal = java.util.UUID.randomUUID().toString()
+        
+        senderVal = String ""
+        if record.sender \= null then senderVal = record.sender
+        
+        receiverVal = String ""
+        if record.receiver \= null then receiverVal = record.receiver
+        
+        amountVal = double 0.0
+        if record.amount \= null then do
+          do
+            amountVal = double record.amount
+          catch NumberFormatException
+            amountVal = 0.0
+          end
+        end
+        
+        priorityVal = String ""
+        if record.priority \= null then priorityVal = record.priority
+        
+        -- Query channel from routing rules
+        pstmtSelect = conn.prepareStatement("SELECT channel FROM routing_rules WHERE priority = ? AND min_amount <= ? ORDER BY min_amount DESC LIMIT 1;")
+        pstmtSelect.setString(1, priorityVal)
+        pstmtSelect.setDouble(2, amountVal)
+        
+        rs = pstmtSelect.executeQuery()
+        if rs.next() then do
+          channel = rs.getString(1)
+          status = "COMPLETED"
+        end
+        
+        -- Insert into transaction log
+        pstmtInsert = conn.prepareStatement("INSERT OR REPLACE INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?);")
+        pstmtInsert.setString(1, txIdVal)
+        pstmtInsert.setString(2, senderVal)
+        pstmtInsert.setString(3, receiverVal)
+        pstmtInsert.setDouble(4, amountVal)
+        pstmtInsert.setString(5, channel)
+        pstmtInsert.setString(6, status)
+        pstmtInsert.executeUpdate()
+        
+      catch ex = SQLException
+        ex.printStackTrace()
+      finally
+        do
+          if rs \= null then rs.close()
+          if pstmtSelect \= null then pstmtSelect.close()
+          if pstmtInsert \= null then pstmtInsert.close()
+          if conn \= null then conn.close()
+        catch SQLException
+          nop
+        end
       end
     end
-    return avgVal
+    return channel

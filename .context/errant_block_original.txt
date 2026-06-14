@@ -1,15 +1,19 @@
-  method getAverageMetric(dbPath = String, name = String) public static returns Rexx
+  method getTransactionCount(dbPath = String, status = String) public static returns Rexx
     conn = Connection null
     pstmt = PreparedStatement null
     rs = ResultSet null
-    avgVal = Rexx 0
-    do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?;")
-      pstmt.setString(1, invalidVarName)
+    count = Rexx 0
+   I will read the generated test harness file `generated/TransactionRouterTest.nrx` to inspect the test suite structure.
+ Osiris: Task 98 is running.
+RE status = ?;")
+      
+      statusVal = String ""
+      if status \= null then statusVal = status
+      pstmt.setString(1, statusVal)
+      
       rs = pstmt.executeQuery()
       if rs.next() then do
-        avgVal = Rexx(rs.getDouble(1))
+        count = Rexx(rs.getInt(1))
       end
     catch ex = SQLException
       ex.printStackTrace()
@@ -22,4 +26,4 @@
         nop
       end
     end
-    return avgVal
+    return count

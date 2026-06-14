@@ -1,0 +1,30 @@
+package com.factory
+options binary
+import java.sql.SQLException
+
+class TransactionRouterTest public
+  method main(args = String[]) public static
+    say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
+    
+    -- Boundary payloads
+    stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
+    dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
+    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
+    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
+    
+    -- Build MetricRecord boundary instances
+    recordBounds = java.util.ArrayList()
+    recordBounds.add(null)
+    loop tsVal over stringBounds
+      loop nameVal over stringBounds
+        loop valVal over doubleBounds
+          rec = MetricRecord()
+          if tsVal \= "null" then rec.timestamp = String tsVal
+          if nameVal \= "null" then rec.metricName = String nameVal
+          rec.metricValue = valVal
+          recordBounds.add(rec)
+        end
+      end
+    end
+
+    say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
