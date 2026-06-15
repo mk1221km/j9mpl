@@ -37,8 +37,8 @@ while [ "${RETRY_COUNT}" -lt "${MAX_RETRIES}" ]; do
     TEMP_OUT="${PROJECT_DIR}/.context/model_output_raw.txt"
 
     echo "  -> Dispatching self-correction prompt to remote model..."
-    # Run agy in non-interactive print mode with prompt content
-    agy --print "$(cat "${PROMPT_FILE}")" > "${TEMP_OUT}"
+    # Run llm in non-interactive print mode with prompt content
+    ./bin/llm --print "$(cat "${PROMPT_FILE}")" > "${TEMP_OUT}"
 
     # Clean up model output to isolate the raw NetRexx block
     if grep -q '\`\`\`' "${TEMP_OUT}"; then

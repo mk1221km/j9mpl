@@ -1,7 +1,51 @@
-=== SPECIFICATION INGEST SYNTHESIS PROMPT ===
-Target Specification: Enterprise Transaction Routing Service Specification
+### LAYER 1: FIXED TARGET GRAMMAR EXEMPLAR
+1. Imports must be nominal (no wildcards): import java.sql.DriverManager
 
-Architectural Invariants & Constraints:
+class DatabaseTemplate public
+  properties private static
+    dbUrl = String "jdbc:sqlite:runtime.db"
+
+  method fetchRecordCount(statusFilter = String) returns int public static
+    conn = Connection null
+    stmt = PreparedStatement null
+    rs = ResultSet null
+    count = int 0
+    do
+      conn = DriverManager.getConnection(dbUrl)
+      stmt = conn.prepareStatement("SELECT count(*) FROM queue WHERE state = ?")
+      stmt.setString(1, statusFilter)
+      rs = stmt.executeQuery()
+      loop while rs.next()
+        count = rs.getInt(1)
+      end
+    catch ex = SQLException
+      say "Execution Fault: " || ex.getMessage()
+    finally
+      do
+        if rs \= null then rs.close()
+        if stmt \= null then stmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
+    end
+    return count
+
+### LAYER 2: ACTIVE SYMBOL LEDGER AND SCHEMA TUPLES
+=== Codebase Existence Ledger Analysis ===
+[FOUND] Class TransactionRecord exists in codebase (File: /home/me/code/j9mpl/generated/TransactionRouter.java, URI: |java+class:///com/factory/routing/TransactionRecordDummy|)
+
+[FOUND] Class TransactionRouter exists in codebase (File: /home/me/code/j9mpl/generated/TransactionRouter.java, URI: |java+class:///com/factory/routing/TransactionRouter|)
+  - [FOUND] Method TransactionRouter.initRoutingTable (URI: |java+method:///com/factory/routing/TransactionRouter/initRoutingTable(java.lang.String)|)
+  - [FOUND] Method TransactionRouter.routeTransaction (URI: |java+method:///com/factory/routing/TransactionRouter/routeTransaction(java.lang.String,com.factory.routing.TransactionRecord)|)
+  - [FOUND] Method TransactionRouter.getTransactionCount (URI: |java+method:///com/factory/routing/TransactionRouter/getTransactionCount(java.lang.String,java.lang.String)|)
+  - [FOUND] Method TransactionRouter.main (URI: |java+method:///com/factory/routing/TransactionRouter/main(java.lang.String%5B%5D)|)
+
+
+
+### LAYER 3: TARGET REQUIREMENTS
+Target: Enterprise Transaction Routing Service Specification
+
 - **Database Engine:** SQLite
 - **Target Table 1:** `routing_rules`
 - `min_amount` REAL (Primary Key)
@@ -15,7 +59,6 @@ Architectural Invariants & Constraints:
 - `channel` TEXT
 - `status` TEXT
 
-Target Class Specifications:
 Class: TransactionRecord
   Fields:
     - txId (String)
@@ -31,17 +74,5 @@ Class: TransactionRouter
     - getTransactionCount(dbPath: String, status: String)
     - main(args: String[])
 
-Ledger Coverage Analysis:
-=== Codebase Existence Ledger Analysis ===
-[FOUND] Class TransactionRecord exists in codebase (File: /home/me/code/j9mpl/generated/TransactionRouter.java, URI: |java+class:///com/factory/routing/TransactionRecord|)
-
-[FOUND] Class TransactionRouter exists in codebase (File: /home/me/code/j9mpl/generated/TransactionRouter.java, URI: |java+class:///com/factory/routing/TransactionRouter|)
-  - [FOUND] Method TransactionRouter.initRoutingTable (URI: |java+method:///com/factory/routing/TransactionRouter/initRoutingTable(java.lang.String)|)
-  - [FOUND] Method TransactionRouter.routeTransaction (URI: |java+method:///com/factory/routing/TransactionRouter/routeTransaction(java.lang.String,com.factory.routing.TransactionRecord)|)
-  - [FOUND] Method TransactionRouter.getTransactionCount (URI: |java+method:///com/factory/routing/TransactionRouter/getTransactionCount(java.lang.String,java.lang.String)|)
-  - [FOUND] Method TransactionRouter.main (URI: |java+method:///com/factory/routing/TransactionRouter/main(java.lang.String%5B%5D)|)
-
-
-Generate the complete NetRexx source file meeting this specification.
-Reuse and align structural types where marked as [FOUND]. Synthesize all blocks marked as [MISSING].
-Output ONLY the complete revised NetRexx source code. No explanations, no markdown block wrapping.
+IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Every method taking a 'dbPath = String' parameter MUST check `if dbPath \= null & dbPath \= "null" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.
+Output ONLY the complete NetRexx source code matching the layer 1 structural pattern and layer 3 requirements. No explanations, no markdown block wrapping.
