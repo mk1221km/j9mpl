@@ -74,13 +74,24 @@ To decouple implementation semantics from test verification bounds and prevent T
 [Execute Sandbox Fuzz] <-- [Assemble Test Harness] <-- [Query SQL Boundary Vectors]
 ```
 
+* **Type Fingerprint Resolution:** Rascal MPL extracts facts from the abstract syntax tree and outputs them as a structured JSON manifest.
+* **Vector Query Binding:** Tcl supervisor queries `test_exemplars` dynamically for the exact type fingerprint (e.g., loading SQL injection vectors for target primitive `String`).
+* **Harness Compilation Safety**: Because boundary parameters are selected strictly by type fingerprints,Turn-1 compilation of the test harness is guaranteed.
+
 ---
 
-## 5. Next-Session Handoff Ledger
+## 5. Execution Blueprint for the Next Development Cycle
 
-The workspace has been completely stabilized, cleaned, and merged back into the repository baseline under Git commit tracking ID `e6884bc`.
+The next cycle will proceed sequentially across these three implementation gates:
+* **Step 1: Schema Migration**: Instantiate the `test_exemplars` table inside `project_context.db`, adding an index on `target_primitive`.
+* **Step 2: Rascal Manifest Serialization**: Update `src/TestGenerator.rsc` to export the AST symbols and type signatures as a structured JSON manifest.
+* **Step 3: Supervisor Vector Injection**: Update `bin/self_correct_loop.tcl` to load the JSON manifest, fetch matching database exemplars, and feed them directly to the sandbox fuzzer harness.
 
-* **State Cache:** `icl-experiment-session1.md` and `synthesis_report.md` are locked in the workspace root, preserving the 19-run infrastructure discoveries.
-* **Pipeline Status:** `bin/spec_parser` and `bin/self_correct` are fully data-driven, leveraging the stateless SQLite grammar layers.
+---
 
-The next session will pick up automatically from this baseline, ready to implement the `test_exemplars` schema migration and unroll the incremental stitching loops across remaining target specifications. All systems are offline and secure.
+## 6. Final Handoff Log Status
+
+The repository state is fully synchronized and committed:
+* **Workspace Condition**: Sanitized of all transient, non-deterministic build artifacts.
+* **Version Control Target**: Pushed to GitHub under commit ID `002b760`.
+* **Session State Cache**: This file `icl-experiment-session1.md` serves as the high-fidelity recovery anchor.
