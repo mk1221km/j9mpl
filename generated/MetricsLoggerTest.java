@@ -1,5 +1,5 @@
-/* Generated from 'MetricsLoggerTest.nrx' 15 Jun 2026 00:39:08 [v5.10] */
-/* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Sourcedir Trace2 Verbose3 */
+/* Generated from 'MetricsLoggerTest.nrx' 15 Jun 2026 04:57:58 [v5.10] */
+/* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.SQLException;
 
@@ -24,10 +24,6 @@ public class MetricsLoggerTest{
   java.lang.String logMetric_p1=null;
   java.lang.Object val2=null;
   com.factory.metrics.MetricRecord logMetric_p2=null;
-  java.lang.RuntimeException ex=null;
-  java.lang.String getAverageMetric_p1=null;
-  java.lang.String getAverageMetric_p2=null;
-  java.lang.String initDatabase_p1=null;
   netrexx.lang.RexxIO.Say("=== [Phase III] Starting Boundary Input Exhaustion Test for MetricsLogger ===");
   stringBounds=new java.lang.String[]{"","normal_string_test","\'; DROP TABLE system_metrics; --","null"};
   dbPathBounds=new java.lang.String[]{"generated/metrics_test.db",":memory:","null"};
@@ -51,6 +47,8 @@ public class MetricsLoggerTest{
    }/*nameVal*/
    }
   }/*tsVal*/
+  if (((((stringBounds==null)|(dbPathBounds==null))|(doubleBounds==null))|(rexxBounds==null))|(recordBounds==null)) 
+   netrexx.lang.RexxIO.Say("null");
   netrexx.lang.RexxIO.Say("Testing method logMetric...");
   {int $12=0;java.lang.String[] $11=new java.lang.String[dbPathBounds.length];synchronized(dbPathBounds){for(;;){if($12==$11.length)break;$11[$12]=dbPathBounds[dbPathBounds.length-1-$12];$12++;}}val1:for(;;){if(--$12<0)break;val1=(java.lang.String)$11[$12];
    logMetric_p1=(java.lang.String)null;
@@ -62,7 +60,7 @@ public class MetricsLoggerTest{
     {try{
      com.factory.metrics.MetricsLogger.logMetric(logMetric_p1,logMetric_p2);
     }
-    catch (java.lang.RuntimeException $16){ex=$16;
+    catch (java.lang.RuntimeException $16){
      ;
     }}
     }
@@ -70,40 +68,6 @@ public class MetricsLoggerTest{
    }
   }/*val1*/
   netrexx.lang.RexxIO.Say("  Method logMetric boundary exhaustion completed.");
-  netrexx.lang.RexxIO.Say("Testing method getAverageMetric...");
-  {int $19=0;java.lang.String[] $18=new java.lang.String[dbPathBounds.length];synchronized(dbPathBounds){for(;;){if($19==$18.length)break;$18[$19]=dbPathBounds[dbPathBounds.length-1-$19];$19++;}}val1:for(;;){if(--$19<0)break;val1=(java.lang.String)$18[$19];
-   getAverageMetric_p1=(java.lang.String)null;
-   if (netrexx.lang.Rexx.toRexx(val1).OpNotEq(null,$01)) 
-    getAverageMetric_p1=val1;
-   {int $22=0;java.lang.String[] $21=new java.lang.String[stringBounds.length];synchronized(stringBounds){for(;;){if($22==$21.length)break;$21[$22]=stringBounds[stringBounds.length-1-$22];$22++;}}val2:for(;;){if(--$22<0)break;val2=(java.lang.Object)((java.lang.String)$21[$22]);
-    getAverageMetric_p2=(java.lang.String)null;
-    if (val2!="null") 
-     getAverageMetric_p2=(java.lang.String)val2;
-    {try{
-     com.factory.metrics.MetricsLogger.getAverageMetric(getAverageMetric_p1,getAverageMetric_p2);
-    }
-    catch (java.lang.RuntimeException $23){ex=$23;
-     ;
-    }}
-    }
-   }/*val2*/
-   }
-  }/*val1*/
-  netrexx.lang.RexxIO.Say("  Method getAverageMetric boundary exhaustion completed.");
-  netrexx.lang.RexxIO.Say("Testing method initDatabase...");
-  {int $26=0;java.lang.String[] $25=new java.lang.String[dbPathBounds.length];synchronized(dbPathBounds){for(;;){if($26==$25.length)break;$25[$26]=dbPathBounds[dbPathBounds.length-1-$26];$26++;}}val1:for(;;){if(--$26<0)break;val1=(java.lang.String)$25[$26];
-   initDatabase_p1=(java.lang.String)null;
-   if (netrexx.lang.Rexx.toRexx(val1).OpNotEq(null,$01)) 
-    initDatabase_p1=val1;
-   {try{
-    com.factory.metrics.MetricsLogger.initDatabase(initDatabase_p1);
-   }
-   catch (java.lang.RuntimeException $27){ex=$27;
-    ;
-   }}
-   }
-  }/*val1*/
-  netrexx.lang.RexxIO.Say("  Method initDatabase boundary exhaustion completed.");
   netrexx.lang.RexxIO.Say("=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ===");
   return;}
  

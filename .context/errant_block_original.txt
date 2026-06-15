@@ -1,5 +1,5 @@
   method main(args = String[]) public static
-    say "=== [Phase III] Starting Boundary Input Exhaustion Test for MetricsLogger ==="
+    say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
     
     -- Boundary payloads
     stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
@@ -7,66 +7,68 @@
     doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
     rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
     
-    -- Build MetricRecord boundary instances
+    -- Build TransactionRecord boundary instances
     recordBounds = java.util.ArrayList()
     recordBounds.add(null)
     loop tsVal over stringBounds
       loop nameVal over stringBounds
         loop valVal over doubleBounds
-          rec = MetricRecord()
-          if tsVal \= "null" then rec.timestamp = String tsVal
-          if nameVal \= "null" then rec.metricName = String nameVal
-          rec.metricValue = valVal
+          rec = TransactionRecord()
+          if tsVal \= "null" then rec.priority = String tsVal
+          if nameVal \= "null" then rec.receiver = String nameVal
+          if tsVal \= "null" then rec.sender = String tsVal
+          rec.amount = valVal
+          if nameVal \= "null" then rec.txId = String nameVal
           recordBounds.add(rec)
         end
       end
     end
 
-    say "Testing method logMetric..."
+    say "Testing method routeTransaction..."
     loop val1 over dbPathBounds
-      logMetric_p1 = java.lang.String null
-      if val1 \= "null" then logMetric_p1 = String val1
+      routeTransaction_p1 = java.lang.String null
+      if val1 \= "null" then routeTransaction_p1 = java.lang.String val1
       loop val2 over recordBounds
-        logMetric_p2 = com.factory.metrics.MetricRecord null
-        logMetric_p2 = MetricRecord val2
+        routeTransaction_p2 = com.factory.routing.TransactionRecord null
+        routeTransaction_p2 = com.factory.routing.TransactionRecord val2
         do
-          MetricsLogger.logMetric(logMetric_p1, logMetric_p2)
-        catch ex = RuntimeException
+          TransactionRouter.routeTransaction(routeTransaction_p1, routeTransaction_p2)
+        catch RuntimeException
           -- Silent capture of expected exceptions
           nop
         end
       end
     end
-    say "  Method logMetric boundary exhaustion completed."
+    say "  Method routeTransaction boundary exhaustion completed."
 
-    say "Testing method getAverageMetric..."
+    say "Testing method initRoutingTable..."
     loop val1 over dbPathBounds
-      getAverageMetric_p1 = java.lang.String null
-      if val1 \= "null" then getAverageMetric_p1 = String val1
-      loop val2 over stringBounds
-        getAverageMetric_p2 = java.lang.String null
-        if val2 \= "null" then getAverageMetric_p2 = String val2
-        do
-          MetricsLogger.getAverageMetric(getAverageMetric_p1, getAverageMetric_p2)
-        catch ex = RuntimeException
-          -- Silent capture of expected exceptions
-          nop
-        end
-      end
-    end
-    say "  Method getAverageMetric boundary exhaustion completed."
-
-    say "Testing method initDatabase..."
-    loop val1 over dbPathBounds
-      initDatabase_p1 = java.lang.String null
-      if val1 \= "null" then initDatabase_p1 = String val1
+      initRoutingTable_p1 = java.lang.String null
+      if val1 \= "null" then initRoutingTable_p1 = java.lang.String val1
       do
-        MetricsLogger.initDatabase(initDatabase_p1)
-      catch ex = RuntimeException
+        TransactionRouter.initRoutingTable(initRoutingTable_p1)
+      catch RuntimeException
         -- Silent capture of expected exceptions
         nop
       end
     end
-    say "  Method initDatabase boundary exhaustion completed."
+    say "  Method initRoutingTable boundary exhaustion completed."
+
+    say "Testing method getTransactionCount..."
+    loop val1 over dbPathBounds
+      getTransactionCount_p1 = java.lang.String null
+      if val1 \= "null" then getTransactionCount_p1 = java.lang.String val1
+      loop val2 over stringBounds
+        getTransactionCount_p2 = java.lang.String null
+        if val2 \= "null" then getTransactionCount_p2 = java.lang.String val2
+        do
+          TransactionRouter.getTransactionCount(getTransactionCount_p1, getTransactionCount_p2)
+        catch RuntimeException
+          -- Silent capture of expected exceptions
+          nop
+        end
+      end
+    end
+    say "  Method getTransactionCount boundary exhaustion completed."
 
     say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="

@@ -1,2 +1,167 @@
+package com.factory.routing
 options binary
-say "hello"
+import java.sql.DriverManager
+import java.sql.Connection
+import java.sql.Statement
+import java.sql.PreparedStatement
+import java.sql.ResultSet
+import java.sql.SQLException
+
+class TransactionRouterDummy private
+
+class TransactionRecord shared
+  properties public
+    txId = String
+    sender = String
+    receiver = String
+    amount = Rexx
+    priority = String
+
+class TransactionRouter public
+  method initRoutingTable(dbPath = String) public static
+  conn = Connection null
+  stmt = Statement null
+  do
+    if dbPath \= null & dbPath \= "null" then do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      stmt = conn.createStatement()
+      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS routing_rules (" || -
+        "min_amount REAL, " || -
+        "priority TEXT, " || -
+        "channel TEXT, " || -
+        "PRIMARY KEY (min_amount, priority)" || -
+        ")")
+      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS transaction_log (" || -
+        "tx_id TEXT PRIMARY KEY, " || -
+        "sender TEXT, " || -
+        "receiver TEXT, " || -
+        "amount REAL, " || -
+        "channel TEXT, " || -
+        "status TEXT" || -
+        ")")
+      stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (0, 'low', 'standard')")
+      stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (5000, 'medium', 'premium')")
+      stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (10000, 'high', 'gold')")
+    end
+  catch ex = SQLException
+    say "SQL error: " || ex.getMessage()
+  finally
+    do
+      if stmt \= null then stmt.close()
+      if conn \= null then conn.close()
+    catch SQLException
+      nop
+    end
+  end
+
+  method routeTransaction(dbPath = String, record = TransactionRecord) public static returns String
+  conn = Connection null
+  stmt = PreparedStatement null
+  rs = ResultSet null
+  channel = String null
+  do
+    if dbPath \= null & dbPath \= "null" then do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      stmt = conn.prepareStatement("SELECT channel FROM routing_rules WHERE min_amount <= ? AND priority = ? ORDER BY min_amount DESC LIMIT 1")
+      stmt.setDouble(1, record.amount)
+      stmt.setString(2, record.priority)
+      rs = stmt.executeQuery()
+      if rs.next() then do
+        channel = rs.getString("channel")
+      end
+      else do
+        channel = "ACH"
+      end
+      stmt = conn.prepareStatement("INSERT INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?)")
+      stmt.setString(1, record.txId)
+      stmt.setString(2, record.sender)
+      stmt.setString(3, record.receiver)
+      stmt.setDouble(4, record.amount)
+      stmt.setString(5, channel)
+      stmt.setString(6, "PENDING")
+      stmt.executeUpdate()
+    end
+    else do
+      channel = "INVALID_DB"
+    end
+  catch ex = SQLException
+    say "Routing Error: " || ex.getMessage()
+    channel = "ERROR"
+  finally
+    do
+      if rs \= null then rs.close()
+      if stmt \= null then stmt.close()
+      if conn \= null then conn.close()
+    catch SQLException
+      nop
+    end
+  end
+  return channel
+
+  method getTransactionCount(dbPath = String, status = String) public static returns Rexx
+  count = int 0
+  if dbPath \= null & dbPath \= "null" then do
+    conn = Connection null
+    stmt = PreparedStatement null
+    rs = ResultSet null
+    do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      stmt = conn.prepareStatement("SELECT count(*) FROM transaction_log WHERE status = ?")
+      stmt.setString(1, status)
+      rs = stmt.executeQuery()
+      loop while rs.next()
+        count = rs.getInt(1)
+      end
+    catch ex = SQLException
+      say "Execution Fault: " || ex.getMessage()
+    finally
+      do
+        if rs \= null then rs.close()
+        if stmt \= null then stmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
+    end
+  end
+  return count
+
+  method main(args = String[]) public static
+    dbPath = String
+    if args.length > 0 then dbPath = args[0]
+    else dbPath = "routing.db"
+    if dbPath \= null & dbPath \= "null" then do
+      initRoutingTable(dbPath)
+      
+      record1 = TransactionRecord()
+      record1.txId = "TXN-001"
+      record1.sender = "Alice"
+      record1.receiver = "Bob"
+      record1.amount = 100.50
+      record1.priority = "low"
+      res1 = routeTransaction(dbPath, record1)
+      say "Routed TXN-001 to channel: " || res1
+      
+      record2 = TransactionRecord()
+      record2.txId = "TXN-002"
+      record2.sender = "Charlie"
+      record2.receiver = "Dave"
+      record2.amount = 5500.00
+      record2.priority = "medium"
+      res2 = routeTransaction(dbPath, record2)
+      say "Routed TXN-002 to channel: " || res2
+
+      record3 = TransactionRecord()
+      record3.txId = "TXN-003"
+      record3.sender = "Eve"
+      record3.receiver = "Frank"
+      record3.amount = 10500.00
+      record3.priority = "high"
+      res3 = routeTransaction(dbPath, record3)
+      say "Routed TXN-003 to channel: " || res3
+      
+      count = getTransactionCount(dbPath, "PENDING")
+      say "Total pending transactions: " || count
+    end
+
+

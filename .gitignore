@@ -13,7 +13,6 @@ jobs/
 
 # Local configuration and scratch files
 scratch/
-.context/errant_block_*.txt
-.context/self_correct_prompt.txt
-.context/model_output_raw.txt
+.context/*.txt
+.context/methods.txt
 .context/extracted.sql

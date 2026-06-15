@@ -11,9 +11,8 @@ echo "=== Starting job pipeline for ${CLASS_NAME} ==="
 echo "[1/5] Parsing specification..."
 ./bin/spec_parser "${SPEC_FILE}"
 
-# 2. Seed via llm
-echo "[2/5] Seeding NetRexx source via llm..."
-./bin/llm --print "$(cat .context/synthesis_prompt.txt)" > "generated/${CLASS_NAME}.nrx"
+# 2. Incremental synthesis prep
+echo "[2/5] Incremental Synthesis mode active. Class skeleton generated."
 
 # 3. Compile/self-correct main class
 echo "[3/5] Cleaning stale generation artifacts..."

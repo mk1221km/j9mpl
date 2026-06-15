@@ -1,5 +1,28 @@
 ### LAYER 1: FIXED TARGET GRAMMAR EXEMPLAR
-1. Imports must be nominal (no wildcards): import java.sql.DriverManager
+### NetRexx Grammar Rules & Invariants:
+1. Imports must be nominal (no wildcards):
+   import java.sql.DriverManager
+   import java.sql.Connection
+   import java.sql.Statement
+   import java.sql.PreparedStatement
+   import java.sql.ResultSet
+   import java.sql.SQLException
+2. Method Signatures:
+   Always declare arguments with an equals sign (=), e.g., `method initRoutingTable(dbPath = String) public static`.
+   DO NOT omit the equals sign in method arguments.
+   Specify the return type with `returns <Type>`, e.g., `method getTransactionCount(dbPath = String, status = String) public static returns Rexx`.
+3. Line Continuation:
+   If a statement or string concatenation is split across lines, you MUST terminate the line with a trailing hyphen (`-`) to continue the statement, e.g.:
+   stmt.executeUpdate("CREATE TABLE IF NOT EXISTS routing_rules (" || -
+     "min_amount REAL, " || -
+     "priority TEXT)")
+   Without a trailing hyphen `-` at the end of the line, NetRexx treats the newline as the end of the statement, causing compilation errors.
+4. Exception Handling & DO Blocks:
+   Use do/catch/finally/end blocks. Every `do` must have a matching `end`.
+5. Database Path Safety Guard:
+   To prevent SQLite from physically creating a file named 'null' in the current working directory, you MUST guard all database connection code with `if dbPath \= null & dbPath \= "null" then do` before establishing a connection.
+6. Void Methods (Returning Nothing):
+   In NetRexx, methods that do not return a value (void methods) MUST NOT have a `returns` clause. Do NOT write `returns void` or `returns none`. Simply omit the `returns` keyword and type completely. Example: `method logMetric(dbPath = String, record = MetricRecord) public static`.
 
 class DatabaseTemplate public
   properties private static
@@ -33,46 +56,28 @@ class DatabaseTemplate public
 
 ### LAYER 2: ACTIVE SYMBOL LEDGER AND SCHEMA TUPLES
 === Codebase Existence Ledger Analysis ===
-[FOUND] Class TransactionRecord exists in codebase (File: /home/me/code/j9mpl/generated/TransactionRouter.java, URI: |java+class:///com/factory/routing/TransactionRecordDummy|)
+[FOUND] Class MetricRecord exists in codebase (File: /home/me/code/j9mpl/generated/MetricsLogger.java, URI: |java+class:///com/factory/metrics/MetricRecord|)
 
-[FOUND] Class TransactionRouter exists in codebase (File: /home/me/code/j9mpl/generated/TransactionRouter.java, URI: |java+class:///com/factory/routing/TransactionRouter|)
-  - [FOUND] Method TransactionRouter.initRoutingTable (URI: |java+method:///com/factory/routing/TransactionRouter/initRoutingTable(java.lang.String)|)
-  - [FOUND] Method TransactionRouter.routeTransaction (URI: |java+method:///com/factory/routing/TransactionRouter/routeTransaction(java.lang.String,com.factory.routing.TransactionRecord)|)
-  - [FOUND] Method TransactionRouter.getTransactionCount (URI: |java+method:///com/factory/routing/TransactionRouter/getTransactionCount(java.lang.String,java.lang.String)|)
-  - [FOUND] Method TransactionRouter.main (URI: |java+method:///com/factory/routing/TransactionRouter/main(java.lang.String%5B%5D)|)
-
+[FOUND] Class MetricsLogger exists in codebase (File: /home/me/code/j9mpl/generated/MetricsLoggerTest.java, URI: |java+class:///com/factory/metrics/MetricsLoggerTest|)
+  - [FOUND] Method MetricsLogger.initDatabase (URI: |java+method:///com/factory/metrics/MetricsLogger/initDatabase(java.lang.String)|)
+  - [FOUND] Method MetricsLogger.logMetric (URI: |java+method:///com/factory/metrics/MetricsLogger/logMetric(java.lang.String,com.factory.metrics.MetricRecord)|)
+  - [FOUND] Method MetricsLogger.main (URI: |java+method:///com/factory/metrics/MetricsLogger/main(java.lang.String%5B%5D)|)
 
 
-### LAYER 3: TARGET REQUIREMENTS
-Target: Enterprise Transaction Routing Service Specification
 
+### LAYER 3: JDBC/SQLITE REFERENCE EXEMPLARS
+### LAYER 4: TARGET METHOD REQUIREMENTS
+Class: MetricsLogger
+Target Method Signature: method all() public static
+Requirements: Generate all methods.
+
+Architectural Invariants & Database Schema:
 - **Database Engine:** SQLite
-- **Target Table 1:** `routing_rules`
-- `min_amount` REAL (Primary Key)
-- `priority` TEXT (Primary Key)
-- `channel` TEXT
-- **Target Table 2:** `transaction_log`
-- `tx_id` TEXT (Primary Key)
-- `sender` TEXT
-- `receiver` TEXT
-- `amount` REAL
-- `channel` TEXT
-- `status` TEXT
+- **Target Table:** `system_metrics`
+- **Table Schema:**
+- `timestamp` TEXT
+- `name` TEXT
+- `value` REAL
 
-Class: TransactionRecord
-  Fields:
-    - txId (String)
-    - sender (String)
-    - receiver (String)
-    - amount (Rexx)
-    - priority (String)
-
-Class: TransactionRouter
-  Methods:
-    - initRoutingTable(dbPath: String)
-    - routeTransaction(dbPath: String, record: TransactionRecord)
-    - getTransactionCount(dbPath: String, status: String)
-    - main(args: String[])
-
-IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Every method taking a 'dbPath = String' parameter MUST check `if dbPath \= null & dbPath \= "null" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.
-Output ONLY the complete NetRexx source code matching the layer 1 structural pattern and layer 3 requirements. No explanations, no markdown block wrapping.
+IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Since this method takes a 'dbPath = String' parameter, you MUST check `if dbPath \= null & dbPath \= "null" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.
+Output ONLY the complete NetRexx method block (starting with 'method all() public static' and ending with 'end' or after finally). Do not include the enclosing class, package, or imports. Do not wrap in markdown code blocks.

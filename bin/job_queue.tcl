@@ -78,6 +78,7 @@ proc setupWorkspace {className specPath} {
     file link [file join $jobDir "target"] [file join $projectDir "target"]
     file link [file join $jobDir "rascal-shell-stable.jar"] [file join $projectDir "rascal-shell-stable.jar"]
     file link [file join $jobDir "ecj-3.46.0.jar"] [file join $projectDir "ecj-3.46.0.jar"]
+    file link [file join $jobDir "src"] [file join $projectDir "src"]
     
     # Copy all files from main bin/ to job bin/ (excluding the com directory) to preserve isolated path resolution
     foreach f [glob -nocomplain -tails -directory [file join $projectDir "bin"] *] {

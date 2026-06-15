@@ -12,11 +12,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-
+type SpecMethod struct {
+	Name         string
+	Args         string
+	Returns      string
+	Requirements string
+}
 
 type SpecClass struct {
 	Name    string
-	Methods []string
+	Methods []SpecMethod
 	Fields  []string
 }
 
@@ -37,9 +42,9 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 	var spec ParsedSpec
 	scanner := bufio.NewScanner(file)
 
-	classRegex := regexp.MustCompile(`(?i)(?:class|struct)\s+\x60?(\w+)\x60?`)
-	methodRegex := regexp.MustCompile(`^\s*(?:\d+\.|\*|-)\s+\x60?(\w+)\((.*?)\)`)
-	fieldRegex := regexp.MustCompile(`^\s*(?:\*|-)\s+\x60?(\w+)\x60?\s*(?:\((.*?)\))?`)
+	classRegex := regexp.MustCompile(`(?i)(?:class|struct)\s+(\w+)`)
+	methodRegex := regexp.MustCompile(`^\s*(?:\d+\.|\*|-)\s+(\w+)\((.*?)\)(?:\s*(returns\s+\w+))?\s*:\s*(.*)`)
+	fieldRegex := regexp.MustCompile(`^\s*(?:\*|-)\s+(\w+)\s*(?:\((.*?)\))?`)
 	titleRegex := regexp.MustCompile(`^#\s+(.*)`)
 
 	var currentClass *SpecClass
@@ -49,6 +54,8 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		// Strip backticks before processing to handle different signature wrapping styles
+		line = strings.ReplaceAll(line, "`", "")
 		trimmed := strings.TrimSpace(line)
 
 		// Title extraction
@@ -86,11 +93,25 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 			}
 
 			if currentClass != nil {
-				// Check for methods (only in interfaces/methods sections or if contains parentheses)
+				// Check for methods (only in interfaces/methods sections)
 				if inInterfaces && methodRegex.MatchString(trimmed) {
-					if matches := methodRegex.FindStringSubmatch(trimmed); len(matches) > 1 {
-						methodSig := fmt.Sprintf("%s(%s)", matches[1], matches[2])
-						currentClass.Methods = append(currentClass.Methods, methodSig)
+					if matches := methodRegex.FindStringSubmatch(trimmed); len(matches) > 0 {
+						name := matches[1]
+						args := matches[2]
+						returns := ""
+						reqs := ""
+						if len(matches) > 3 {
+							returns = strings.TrimSpace(matches[3])
+						}
+						if len(matches) > 4 {
+							reqs = strings.TrimSpace(matches[4])
+						}
+						currentClass.Methods = append(currentClass.Methods, SpecMethod{
+							Name:         name,
+							Args:         args,
+							Returns:      returns,
+							Requirements: reqs,
+						})
 					}
 				} else if inDTOs && fieldRegex.MatchString(trimmed) {
 					// Check for fields (only in DTOs section)
@@ -129,8 +150,7 @@ func CheckCodeModel(dbPath string, spec ParsedSpec) (string, error) {
 		if err == sql.ErrNoRows {
 			report.WriteString(fmt.Sprintf("[MISSING] Class %s not found in context ledger.\n", class.Name))
 			for _, method := range class.Methods {
-				nameOnly := strings.Split(method, "(")[0]
-				report.WriteString(fmt.Sprintf("  - [MISSING] Method %s.%s\n", class.Name, nameOnly))
+				report.WriteString(fmt.Sprintf("  - [MISSING] Method %s.%s\n", class.Name, method.Name))
 			}
 		} else if err != nil {
 			return "", err
@@ -138,17 +158,16 @@ func CheckCodeModel(dbPath string, spec ParsedSpec) (string, error) {
 			report.WriteString(fmt.Sprintf("[FOUND] Class %s exists in codebase (File: %s, URI: %s)\n", class.Name, filePath, classURI))
 			
 			for _, method := range class.Methods {
-				nameOnly := strings.Split(method, "(")[0]
 				var methodURI string
 				methodQuery := "SELECT symbol_uri FROM declarations WHERE symbol_uri LIKE ? LIMIT 1"
-				mErr := db.QueryRow(methodQuery, "%method%/"+class.Name+"/"+nameOnly+"%").Scan(&methodURI)
+				mErr := db.QueryRow(methodQuery, "%method%/"+class.Name+"/"+method.Name+"%").Scan(&methodURI)
 
 				if mErr == sql.ErrNoRows {
-					report.WriteString(fmt.Sprintf("  - [MISSING] Method %s.%s\n", class.Name, nameOnly))
+					report.WriteString(fmt.Sprintf("  - [MISSING] Method %s.%s\n", class.Name, method.Name))
 				} else if mErr != nil {
 					return "", mErr
 				} else {
-					report.WriteString(fmt.Sprintf("  - [FOUND] Method %s.%s (URI: %s)\n", class.Name, nameOnly, methodURI))
+					report.WriteString(fmt.Sprintf("  - [FOUND] Method %s.%s (URI: %s)\n", class.Name, method.Name, methodURI))
 				}
 			}
 		}
@@ -156,6 +175,186 @@ func CheckCodeModel(dbPath string, spec ParsedSpec) (string, error) {
 	}
 
 	return report.String(), nil
+}
+
+func convertArgsToNetRexx(args string) string {
+	if strings.TrimSpace(args) == "" {
+		return ""
+	}
+	parts := strings.Split(args, ",")
+	var nrxParts []string
+	for _, p := range parts {
+		subParts := strings.Split(p, ":")
+		if len(subParts) == 2 {
+			name := strings.TrimSpace(subParts[0])
+			typ := strings.TrimSpace(subParts[1])
+			nrxParts = append(nrxParts, fmt.Sprintf("%s = %s", name, typ))
+		} else {
+			nrxParts = append(nrxParts, strings.TrimSpace(p))
+		}
+	}
+	return strings.Join(nrxParts, ", ")
+}
+
+func GenerateNrxSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (string, error) {
+	var sb strings.Builder
+	
+	// Resolve package name from DB
+	packageName := "com.factory" // default fallback
+	db, err := sql.Open("sqlite3", dbPath)
+	if err == nil {
+		defer db.Close()
+		var symbolURI string
+		classQuery := "SELECT symbol_uri FROM declarations WHERE symbol_uri LIKE ? LIMIT 1"
+		err = db.QueryRow(classQuery, "%class%/"+mainClassName+"%").Scan(&symbolURI)
+		if err == nil {
+			cleaned := strings.Trim(symbolURI, "|")
+			parts := strings.Split(cleaned, "///")
+			if len(parts) >= 2 {
+				pathPart := parts[len(parts)-1]
+				subParts := strings.Split(pathPart, "/")
+				if len(subParts) > 1 {
+					packageName = strings.Join(subParts[:len(subParts)-1], ".")
+				}
+			}
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("package %s\n", packageName))
+	sb.WriteString("options binary\n")
+	sb.WriteString("import java.sql.DriverManager\n")
+	sb.WriteString("import java.sql.Connection\n")
+	sb.WriteString("import java.sql.Statement\n")
+	sb.WriteString("import java.sql.PreparedStatement\n")
+	sb.WriteString("import java.sql.ResultSet\n")
+	sb.WriteString("import java.sql.SQLException\n\n")
+
+	sb.WriteString(fmt.Sprintf("class %sDummy private\n\n", mainClassName))
+
+	// DTO Classes
+	for _, class := range spec.Classes {
+		if len(class.Methods) == 0 {
+			sb.WriteString(fmt.Sprintf("class %s shared\n", class.Name))
+			sb.WriteString("  properties public\n")
+			for _, field := range class.Fields {
+				parts := strings.Split(field, "(")
+				fName := strings.TrimSpace(parts[0])
+				fType := "Rexx"
+				if len(parts) > 1 {
+					fType = strings.TrimSpace(strings.Trim(parts[1], "()"))
+				}
+				sb.WriteString(fmt.Sprintf("    %s = %s\n", fName, fType))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	// Main public class
+	sb.WriteString(fmt.Sprintf("class %s public\n", mainClassName))
+	for _, class := range spec.Classes {
+		if len(class.Methods) > 0 && class.Name == mainClassName {
+			for _, m := range class.Methods {
+				nrxArgs := convertArgsToNetRexx(m.Args)
+				retClause := ""
+				retType := "void"
+				if m.Returns != "" {
+					retClause = " " + m.Returns
+					retType = strings.TrimSpace(strings.TrimPrefix(m.Returns, "returns"))
+				}
+
+				sb.WriteString(fmt.Sprintf("  method %s(%s) public static%s\n", m.Name, nrxArgs, retClause))
+				sb.WriteString(fmt.Sprintf("    -- SKELETON_%s\n", m.Name))
+				if retType == "void" || m.Name == "main" {
+					sb.WriteString("    nop\n\n")
+				} else {
+					sb.WriteString(fmt.Sprintf("    return %s null\n\n", retType))
+				}
+			}
+		}
+	}
+
+	return sb.String(), nil
+}
+
+func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, invariants []string, report string, classes []SpecClass) (string, error) {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open context database: %w", err)
+	}
+	defer db.Close()
+
+	var prompt strings.Builder
+
+	// Layer 1: Static grammar exemplar from language_substrates table
+	var grammarPrefix, structuralExemplar string
+	err = db.QueryRow("SELECT grammar_prefix, structural_exemplar FROM language_substrates WHERE language_id = 'netrexx'").Scan(&grammarPrefix, &structuralExemplar)
+	if err == nil {
+		prompt.WriteString("### LAYER 1: FIXED TARGET GRAMMAR EXEMPLAR\n")
+		prompt.WriteString(grammarPrefix)
+		prompt.WriteString("\n\n")
+		prompt.WriteString(structuralExemplar)
+		prompt.WriteString("\n\n")
+	}
+
+	// Layer 2: Relational schema data (low volatility)
+	prompt.WriteString("### LAYER 2: ACTIVE SYMBOL LEDGER AND SCHEMA TUPLES\n")
+	prompt.WriteString(report)
+	prompt.WriteString("\n\n")
+
+	// Layer 2.5: Helper Classes and Data Transfer Objects (DTOs)
+	prompt.WriteString("### LAYER 2.5: HELPER CLASSES AND DATA TRANSFER OBJECTS (DTOs)\n")
+	for _, class := range classes {
+		if len(class.Methods) == 0 {
+			prompt.WriteString(fmt.Sprintf("Class %s represents data transfer structures and exposes public properties:\n", class.Name))
+			for _, field := range class.Fields {
+				prompt.WriteString(fmt.Sprintf("- %s\n", field))
+			}
+			prompt.WriteString("\n")
+		}
+	}
+	prompt.WriteString("\n")
+
+	// Layer 3: Exemplar Blocks (from exemplar_blocks table for SQLite/JDBC references)
+	prompt.WriteString("### LAYER 3: JDBC/SQLITE REFERENCE EXEMPLARS\n")
+	rows, err := db.Query("SELECT source_snippet FROM exemplar_blocks WHERE language_id = 'netrexx' ORDER BY execution_priority DESC")
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var snippet string
+			if err := rows.Scan(&snippet); err == nil {
+				prompt.WriteString(snippet)
+				prompt.WriteString("\n\n")
+			}
+		}
+	}
+
+	// Layer 4: Specific Method Target Requirements
+	prompt.WriteString("### LAYER 4: TARGET METHOD REQUIREMENTS\n")
+	prompt.WriteString(fmt.Sprintf("Class: %s\n", mainClassName))
+	
+	nrxArgs := convertArgsToNetRexx(method.Args)
+	retClause := ""
+	if method.Returns != "" {
+		retClause = " " + method.Returns
+	}
+	sig := fmt.Sprintf("method %s(%s) public static%s", method.Name, nrxArgs, retClause)
+	prompt.WriteString(fmt.Sprintf("Target Method Signature: %s\n", sig))
+	prompt.WriteString(fmt.Sprintf("Requirements: %s\n\n", method.Requirements))
+
+	prompt.WriteString("Architectural Invariants & Database Schema:\n")
+	for _, inv := range invariants {
+		prompt.WriteString(fmt.Sprintf("- %s\n", inv))
+	}
+	prompt.WriteString("\n")
+
+	prompt.WriteString("IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:\n")
+	prompt.WriteString("1. Variable declarations MUST follow the NetRexx syntax: 'varName = Type initialValue' (e.g. 'dbPath = String null', 'avg = Rexx 0', 'count = int 0'). Do NOT use Java-style declarations like 'Type varName = value' or 'String dbPath = null' as they will cause syntax errors.\n")
+	prompt.WriteString("2. NetRexx methods do NOT have a terminating 'end' keyword at the method level. Only inner blocks like 'do', 'loop', and 'select' should be closed with 'end'. Do NOT append a trailing 'end' at the end of the method body.\n")
+	prompt.WriteString("3. Checked exceptions (like Exception, SQLException) can ONLY be caught inside a 'do ... catch' block if the body of that 'do' block calls a method that is explicitly declared to throw/signal that exception. If no such method is called, catching checked exceptions is a compile-time error. For 'main', do not catch checked exceptions, or just catch 'RuntimeException' / 'Throwable', or avoid catch blocks entirely.\n")
+	prompt.WriteString("4. You MUST guard all database connection logic against null or empty/placeholder dbPath values. Since this method takes a 'dbPath = String' parameter, you MUST check `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.\n")
+	prompt.WriteString("Output ONLY the complete NetRexx method block starting with '" + sig + "'. Do not include the enclosing class, package, or imports. Do not wrap in markdown code blocks.\n")
+
+	return prompt.String(), nil
 }
 
 func main() {
@@ -189,83 +388,101 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(report)
+	mainClassName := strings.TrimSuffix(filepath.Base(specPath), "Spec.md")
 
-	// Build prompt from SQLite ledger (pure data-driven, no hardcoded constants)
-	prompt, err := BuildPromptFromLedger(dbPath, spec.Title, spec.Invariants, spec.Classes, report)
+	// Emit class skeleton immediately to disk
+	skeleton, err := GenerateNrxSkeleton(dbPath, spec, mainClassName)
 	if err != nil {
-		fmt.Printf("Error building prompt from ledger: %v\n", err)
+		fmt.Printf("Error generating skeleton: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Save to synthesis prompt file
-	promptFile := filepath.Join(projectDir, ".context", "synthesis_prompt.txt")
-	err = os.WriteFile(promptFile, []byte(prompt), 0644)
+	skeletonFile := filepath.Join(projectDir, "generated", mainClassName+".nrx")
+	err = os.WriteFile(skeletonFile, []byte(skeleton), 0644)
 	if err != nil {
-		fmt.Printf("Error writing synthesis prompt file: %v\n", err)
+		fmt.Printf("Error writing skeleton file: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("[INFO] Synthesis prompt written to: %s\n", promptFile)
-}
+	fmt.Printf("[INFO] Structural skeleton written to: %s\n", skeletonFile)
 
-// BuildPromptFromLedger constructs the synthesis prompt from SQLite ledger data.
-// Layer 1: grammar exemplar from language_substrates (static, KV cache optimized).
-// Layer 2: report from symbol ledger (semi-static schema data).
-// Layer 3: dynamic specification requirements (volatile suffix).
-func BuildPromptFromLedger(dbPath string, title string, invariants []string, classes []SpecClass, report string) (string, error) {
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open context database: %w", err)
-	}
-	defer db.Close()
+	// Setup context directory
+	contextDir := filepath.Join(projectDir, ".context")
+	os.MkdirAll(contextDir, 0755)
 
-	var prompt strings.Builder
-
-	// Layer 1: Static grammar exemplar from language_substrates table
-	var grammarPrefix, structuralExemplar string
-	err = db.QueryRow("SELECT grammar_prefix, structural_exemplar FROM language_substrates WHERE language_id = 'netrexx'").Scan(&grammarPrefix, &structuralExemplar)
-	if err != nil {
-		// No grammar found — fall back to minimal instructions
-		prompt.WriteString("### LAYER 1: TARGET LANGUAGE\n")
-		prompt.WriteString("Generate NetRexx source code. Use nominal imports (no wildcards). Modifiers follow class/method names.\n\n")
-	} else {
-		prompt.WriteString("### LAYER 1: FIXED TARGET GRAMMAR EXEMPLAR\n")
-		prompt.WriteString(grammarPrefix)
-		prompt.WriteString("\n\n")
-		prompt.WriteString(structuralExemplar)
-		prompt.WriteString("\n\n")
-	}
-
-	// Layer 2: Relational schema data (low volatility)
-	prompt.WriteString("### LAYER 2: ACTIVE SYMBOL LEDGER AND SCHEMA TUPLES\n")
-	prompt.WriteString(report)
-	prompt.WriteString("\n\n")
-
-	// Layer 3: Dynamic specification + instructions
-	prompt.WriteString("### LAYER 3: TARGET REQUIREMENTS\n")
-	prompt.WriteString(fmt.Sprintf("Target: %s\n\n", title))
-	for _, inv := range invariants {
-		prompt.WriteString(fmt.Sprintf("- %s\n", inv))
-	}
-	prompt.WriteString("\n")
-	for _, class := range classes {
-		prompt.WriteString(fmt.Sprintf("Class: %s\n", class.Name))
-		if len(class.Fields) > 0 {
-			prompt.WriteString("  Fields:\n")
-			for _, f := range class.Fields {
-				prompt.WriteString(fmt.Sprintf("    - %s\n", f))
-			}
+	// Write methods list
+	var methodNames []string
+	var targetClass *SpecClass
+	for _, class := range spec.Classes {
+		if class.Name == mainClassName {
+			targetClass = &class
+			break
 		}
-		if len(class.Methods) > 0 {
-			prompt.WriteString("  Methods:\n")
-			for _, m := range class.Methods {
-				prompt.WriteString(fmt.Sprintf("    - %s\n", m))
-			}
-		}
-		prompt.WriteString("\n")
 	}
-	prompt.WriteString("IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Every method taking a 'dbPath = String' parameter MUST check `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.\n")
-	prompt.WriteString("Output ONLY the complete NetRexx source code matching the layer 1 structural pattern and layer 3 requirements. No explanations, no markdown block wrapping.\n")
 
-	return prompt.String(), nil
+	if targetClass == nil {
+		fmt.Printf("Error: Main class %s not found in parsed specification classes.\n", mainClassName)
+		os.Exit(1)
+	}
+
+	for _, m := range targetClass.Methods {
+		methodNames = append(methodNames, m.Name)
+
+		// Generate method skeleton block
+		nrxArgs := convertArgsToNetRexx(m.Args)
+		retClause := ""
+		retType := "void"
+		if m.Returns != "" {
+			retClause = " " + m.Returns
+			retType = strings.TrimSpace(strings.TrimPrefix(m.Returns, "returns"))
+		}
+
+		var mSkeleton strings.Builder
+		mSkeleton.WriteString(fmt.Sprintf("  method %s(%s) public static%s\n", m.Name, nrxArgs, retClause))
+		mSkeleton.WriteString(fmt.Sprintf("    -- SKELETON_%s\n", m.Name))
+		if retType == "void" || m.Name == "main" {
+			mSkeleton.WriteString("    nop\n")
+		} else {
+			mSkeleton.WriteString(fmt.Sprintf("    return %s null\n", retType))
+		}
+
+		mSkeletonFile := filepath.Join(contextDir, fmt.Sprintf("skeleton_%s.txt", m.Name))
+		err = os.WriteFile(mSkeletonFile, []byte(mSkeleton.String()), 0644)
+		if err != nil {
+			fmt.Printf("Error writing method skeleton file for %s: %v\n", m.Name, err)
+			os.Exit(1)
+		}
+
+		// Generate method prompt
+		mPrompt, err := BuildMethodPrompt(dbPath, mainClassName, m, spec.Invariants, report, spec.Classes)
+		if err != nil {
+			fmt.Printf("Error building method prompt for %s: %v\n", m.Name, err)
+			os.Exit(1)
+		}
+
+		mPromptFile := filepath.Join(contextDir, fmt.Sprintf("prompt_%s.txt", m.Name))
+		err = os.WriteFile(mPromptFile, []byte(mPrompt), 0644)
+		if err != nil {
+			fmt.Printf("Error writing method prompt file for %s: %v\n", m.Name, err)
+			os.Exit(1)
+		}
+	}
+
+	methodsFile := filepath.Join(contextDir, "methods.txt")
+	err = os.WriteFile(methodsFile, []byte(strings.Join(methodNames, "\n")), 0644)
+	if err != nil {
+		fmt.Printf("Error writing methods list file: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[INFO] Methods list written to: %s\n", methodsFile)
+
+	// Build fallback synthesis prompt just in case
+	fallbackPrompt, err := BuildMethodPrompt(dbPath, mainClassName, SpecMethod{
+		Name:         "all",
+		Args:         "",
+		Returns:      "",
+		Requirements: "Generate all methods.",
+	}, spec.Invariants, report, spec.Classes)
+	if err == nil {
+		os.WriteFile(filepath.Join(contextDir, "synthesis_prompt.txt"), []byte(fallbackPrompt), 0644)
+	}
 }

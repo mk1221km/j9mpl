@@ -138,6 +138,7 @@ void generateTest(str className, loc declsFile, loc testFile) {
     code += "        end";
     code += "      end";
     code += "    end";
+    code += "    if stringBounds = null | dbPathBounds = null | doubleBounds = null | rexxBounds = null | recordBounds = null then say \"null\"";
     code += "";
     
     // For each method, generate a nested testing loop
@@ -159,9 +160,9 @@ void generateTest(str className, loc declsFile, loc testFile) {
             
             // Casting/null check logic
             if (contains(paramType, "String")) {
-                code += "<indentStr>  if val<i+1> \\= \"null\" then <varName> = String val<i+1>";
+                code += "<indentStr>  if val<i+1> \\= \"null\" then <varName> = <paramType> val<i+1>";
             } else if (recordType != "" && contains(paramType, recordType)) {
-                code += "<indentStr>  <varName> = <recordType> val<i+1>";
+                code += "<indentStr>  <varName> = <paramType> val<i+1>";
             } else {
                 code += "<indentStr>  <varName> = val<i+1>";
             }
@@ -176,7 +177,7 @@ void generateTest(str className, loc declsFile, loc testFile) {
         
         str callArgs = intercalate(", ", loopVars);
         code += "<innerIndent>  <className>.<m.name>(<callArgs>)";
-        code += "<innerIndent>catch ex = RuntimeException";
+        code += "<innerIndent>catch RuntimeException";
         code += "<innerIndent>  -- Silent capture of expected exceptions";
         code += "<innerIndent>  nop";
         code += "<innerIndent>end";

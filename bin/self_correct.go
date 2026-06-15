@@ -465,7 +465,11 @@ func generateAndWritePrompt(projectDir, symbolContext, errMsg, sourceContext str
 	promptBuilder.WriteString(sourceContext)
 	promptBuilder.WriteString("\n```\n\n")
 	promptBuilder.WriteString("Correct the scope, type allocation, or syntax inside the target block.\n")
-	promptBuilder.WriteString("IMPORTANT: If the block contains database operations using a 'dbPath = String' parameter, you MUST ensure they are guarded with `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, to prevent creating database files in the current working directory named 'null'.\n")
+	promptBuilder.WriteString("IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:\n")
+	promptBuilder.WriteString("1. Variable declarations MUST follow the NetRexx syntax: 'varName = Type initialValue' (e.g. 'dbPath = String null', 'avg = Rexx 0', 'count = int 0'). Do NOT use Java-style declarations like 'Type varName = value' or 'String dbPath = null' as they will cause syntax errors.\n")
+	promptBuilder.WriteString("2. NetRexx methods do NOT have a terminating 'end' keyword at the method level. Only inner blocks like 'do', 'loop', and 'select' should be closed with 'end'. Do NOT append a trailing 'end' at the end of the method body.\n")
+	promptBuilder.WriteString("3. Checked exceptions (like Exception, SQLException) can ONLY be caught inside a 'do ... catch' block if the body of that 'do' block calls a method that is explicitly declared to throw/signal that exception. If no such method is called, catching checked exceptions is a compile-time error. For 'main', do not catch checked exceptions, or just catch 'RuntimeException' / 'Throwable', or avoid catch blocks entirely.\n")
+	promptBuilder.WriteString("4. If the block contains database operations using a 'dbPath = String' parameter, you MUST ensure they are guarded with `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, to prevent creating database files in the current working directory named 'null'.\n")
 	promptBuilder.WriteString("Output ONLY the revised, complete NetRexx source block. Do not include markdown code block formatting or explanations outside the block.\n")
 
 	fmt.Println("\n=================== GENERATED SELF-CORRECTION PROMPT ===================")
