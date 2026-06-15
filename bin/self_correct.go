@@ -219,9 +219,10 @@ func main() {
 		javaPathClean := strings.Replace(nrxPathClean, ".nrx", ".java", 1)
 
 		fmt.Printf("[INFO] Running in NetRexx Translation + ECJ Compilation mode for %s\n", nrxPathClean)
+		fmt.Printf("[DEBUG] projectDir=%s nrcPath=%s ecjPath=%s javaPathClean=%s\n", projectDir, nrcPath, ecjPath, javaPathClean)
 
 		// 1. Run nrc translation
-		nrcCmd := exec.Command(nrcPath, "-nocompile", "-keepasjava", "-sourcedir", "-replace", "-format", nrxPathClean)
+		nrcCmd := exec.Command(nrcPath, "-nocompile", "-keepasjava", "-replace", "-format", nrxPathClean)
 		var nrcOut bytes.Buffer
 		nrcCmd.Stdout = &nrcOut
 		nrcCmd.Stderr = &nrcOut
@@ -278,6 +279,44 @@ func main() {
 
 		// If translation succeeded, we run ECJ on the translated Java file
 		fmt.Println("[INFO] Translation succeeded. Executing ECJ compiler validation...")
+
+		// Verify the .java file exists where expected; search fallback if not
+		origJavaPath := javaPathClean
+		if _, err := os.Stat(javaPathClean); os.IsNotExist(err) {
+			found := false
+			// Search common output locations
+			searchDirs := []string{
+				".",                                          // CWD
+				projectDir,                                   // project root
+				filepath.Dir(nrxPathClean),                   // .nrx source directory
+				filepath.Join(projectDir, "generated"),       // generated/
+				filepath.Join(projectDir, "bin"),             // bin/
+			}
+			for _, dir := range searchDirs {
+				altPath := filepath.Join(dir, filepath.Base(javaPathClean))
+				if _, err2 := os.Stat(altPath); err2 == nil {
+					javaPathClean = altPath
+					found = true
+					break
+				}
+			}
+			// Walk the project to find it as last resort
+			if !found {
+				filepath.Walk(projectDir, func(path string, info os.FileInfo, err error) error {
+					if err != nil || found {
+						return filepath.SkipDir
+					}
+					if info.Name() == filepath.Base(javaPathClean) {
+						javaPathClean = path
+						found = true
+					}
+					return nil
+				})
+			}
+		}
+		if origJavaPath != javaPathClean {
+			fmt.Printf("[DEBUG] Java path resolved via fallback: %s -> %s\n", origJavaPath, javaPathClean)
+		}
 		
 		// Run ECJ with classpaths
 		cmdArgs := []string{"-17", "-proceedOnError", "-d", filepath.Join(projectDir, "bin")}

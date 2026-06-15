@@ -12,6 +12,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+
+
 type SpecClass struct {
 	Name    string
 	Methods []string
@@ -189,19 +191,64 @@ func main() {
 
 	fmt.Println(report)
 
-	// Format synthesis prompt payload
+	// Build prompt from SQLite ledger (pure data-driven, no hardcoded constants)
+	prompt, err := BuildPromptFromLedger(dbPath, spec.Title, spec.Invariants, spec.Classes, report)
+	if err != nil {
+		fmt.Printf("Error building prompt from ledger: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Save to synthesis prompt file
+	promptFile := filepath.Join(projectDir, ".context", "synthesis_prompt.txt")
+	err = os.WriteFile(promptFile, []byte(prompt), 0644)
+	if err != nil {
+		fmt.Printf("Error writing synthesis prompt file: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("[INFO] Synthesis prompt written to: %s\n", promptFile)
+}
+
+// BuildPromptFromLedger constructs the synthesis prompt from SQLite ledger data.
+// Layer 1: grammar exemplar from language_substrates (static, KV cache optimized).
+// Layer 2: report from symbol ledger (semi-static schema data).
+// Layer 3: dynamic specification requirements (volatile suffix).
+func BuildPromptFromLedger(dbPath string, title string, invariants []string, classes []SpecClass, report string) (string, error) {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open context database: %w", err)
+	}
+	defer db.Close()
+
 	var prompt strings.Builder
-	prompt.WriteString("=== SPECIFICATION INGEST SYNTHESIS PROMPT ===\n")
-	prompt.WriteString(fmt.Sprintf("Target Specification: %s\n\n", spec.Title))
-	
-	prompt.WriteString("Architectural Invariants & Constraints:\n")
-	for _, inv := range spec.Invariants {
+
+	// Layer 1: Static grammar exemplar from language_substrates table
+	var grammarPrefix, structuralExemplar string
+	err = db.QueryRow("SELECT grammar_prefix, structural_exemplar FROM language_substrates WHERE language_id = 'netrexx'").Scan(&grammarPrefix, &structuralExemplar)
+	if err != nil {
+		// No grammar found — fall back to minimal instructions
+		prompt.WriteString("### LAYER 1: TARGET LANGUAGE\n")
+		prompt.WriteString("Generate NetRexx source code. Use nominal imports (no wildcards). Modifiers follow class/method names.\n\n")
+	} else {
+		prompt.WriteString("### LAYER 1: FIXED TARGET GRAMMAR EXEMPLAR\n")
+		prompt.WriteString(grammarPrefix)
+		prompt.WriteString("\n\n")
+		prompt.WriteString(structuralExemplar)
+		prompt.WriteString("\n\n")
+	}
+
+	// Layer 2: Relational schema data (low volatility)
+	prompt.WriteString("### LAYER 2: ACTIVE SYMBOL LEDGER AND SCHEMA TUPLES\n")
+	prompt.WriteString(report)
+	prompt.WriteString("\n\n")
+
+	// Layer 3: Dynamic specification + instructions
+	prompt.WriteString("### LAYER 3: TARGET REQUIREMENTS\n")
+	prompt.WriteString(fmt.Sprintf("Target: %s\n\n", title))
+	for _, inv := range invariants {
 		prompt.WriteString(fmt.Sprintf("- %s\n", inv))
 	}
 	prompt.WriteString("\n")
-
-	prompt.WriteString("Target Class Specifications:\n")
-	for _, class := range spec.Classes {
+	for _, class := range classes {
 		prompt.WriteString(fmt.Sprintf("Class: %s\n", class.Name))
 		if len(class.Fields) > 0 {
 			prompt.WriteString("  Fields:\n")
@@ -217,21 +264,8 @@ func main() {
 		}
 		prompt.WriteString("\n")
 	}
+	prompt.WriteString("IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Every method taking a 'dbPath = String' parameter MUST check `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.\n")
+	prompt.WriteString("Output ONLY the complete NetRexx source code matching the layer 1 structural pattern and layer 3 requirements. No explanations, no markdown block wrapping.\n")
 
-	prompt.WriteString("Ledger Coverage Analysis:\n")
-	prompt.WriteString(report)
-
-	prompt.WriteString("\nGenerate the complete NetRexx source file meeting this specification.\n")
-	prompt.WriteString("IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Every method taking a 'dbPath = String' parameter MUST check `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory. Ensure this check wraps all JDBC code in those methods.\n")
-	prompt.WriteString("Reuse and align structural types where marked as [FOUND]. Synthesize all blocks marked as [MISSING].\n")
-	prompt.WriteString("Output ONLY the complete revised NetRexx source code. No explanations, no markdown block wrapping.\n")
-
-	// Save to synthesis prompt file
-	promptFile := filepath.Join(projectDir, ".context", "synthesis_prompt.txt")
-	err = os.WriteFile(promptFile, []byte(prompt.String()), 0644)
-	if err != nil {
-		fmt.Printf("Error writing synthesis prompt file: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("[INFO] Synthesis prompt written to: %s\n", promptFile)
+	return prompt.String(), nil
 }

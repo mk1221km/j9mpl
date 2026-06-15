@@ -11,6 +11,9 @@ if {[llength $argv] < 1} {
 set projectDir [file dirname [file dirname [file normalize [info script]]]]
 cd $projectDir
 
+# Enforce local bin precedence across all fork and exec boundaries
+set env(PATH) "$projectDir/bin:$env(PATH)"
+
 set maxWorkers 2
 set activeCount 0
 set queue $argv
@@ -21,8 +24,36 @@ array set active {}
 # Setup jobs folder
 file mkdir [file join $projectDir "jobs"]
 
+proc verifyEnvironmentInvariants {projectDir} {
+    set invariants [list \
+        [file join $projectDir "lib" "NetRexxF.jar"] \
+        [file join $projectDir "ecj-3.46.0.jar"] \
+        [file join $projectDir "bin" "llm"] \
+    ]
+    
+    foreach invariant $invariants {
+        if {![file exists $invariant]} {
+            return -code error "CRITICAL EXCEPTION: Starvation of core component -> $invariant"
+        }
+    }
+    
+    set depDir [file join $projectDir "target" "dependency"]
+    if {![file exists [file join $depDir "sqlite-jdbc-3.45.1.0.jar"]] || \
+        ![file exists [file join $depDir "slf4j-api-1.7.36.jar"]]} {
+        return -code error "CRITICAL EXCEPTION: Runtime dependencies absent in target/dependency/"
+    }
+    return 1
+}
+
 proc setupWorkspace {className specPath} {
     global projectDir
+    
+    # Pre-flight environment integrity check
+    if {[catch {verifyEnvironmentInvariants $projectDir} err]} {
+        puts stderr "$err"
+        exit 1
+    }
+    
     puts "  -> Setting up isolated workspace for $className..."
     set jobDir [file join $projectDir "jobs" $className]
     

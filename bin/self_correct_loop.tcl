@@ -20,11 +20,20 @@ cd $projectDir
 
 set maxRetries 5
 set retryCount 0
+set compiledSuccessfully 0
 
-while {$retryCount < $maxRetries} {
+while {$retryCount < $maxRetries && !$compiledSuccessfully} {
     puts "=========================================================="
     puts "Iteration [expr {$retryCount + 1}] / $maxRetries"
     puts "=========================================================="
+
+    puts "  -> Purging stale intermediate artifacts..."
+    set javaArtifact "[file rootname $nrxFile].java"
+    if {[file exists $javaArtifact]} {
+        if {[catch {file delete -force $javaArtifact} deleteError]} {
+            puts stderr "\[WARN\] Failed to purge stale intermediate artifact $javaArtifact: $deleteError"
+        }
+    }
 
     puts "\[1/3\] Executing compiler validation..."
     
@@ -33,6 +42,7 @@ while {$retryCount < $maxRetries} {
     puts $result
 
     if {$status == 0} {
+        set compiledSuccessfully 1
         set isTest [string match "*Test.nrx" $nrxFile]
         if {$isTest} {
             puts "\[1.5/3\] Running sandboxed verification sweep..."
@@ -60,6 +70,19 @@ while {$retryCount < $maxRetries} {
         exit 0
     }
 
+    incr retryCount
+    
+    if {$retryCount >= $maxRetries} {
+        puts stderr "\[CIRCUIT BREAKER FAILURE\]: Compilation retry ceiling breached ($maxRetries turns). Execution frozen."
+        puts stderr "Diagnostic Note: Verify local environments, path allocations, and dependency states."
+        exit 1
+    }
+    
+    # Enforce progressive cooling interval prior to the next out-of-band token dispatch
+    set backoffDelay [expr {int(pow(2, $retryCount) * 1000)}]
+    puts "\[BACKOFF ACTIVE\]: Cooling pipeline for $backoffDelay ms before dispatching repair request..."
+    after $backoffDelay
+
     puts "\[2/3\] Intercepting compiler diagnostic and generating prompt..."
     
     # Read the generated prompt
@@ -76,9 +99,9 @@ while {$retryCount < $maxRetries} {
     puts "  -> Dispatching self-correction prompt to remote model..."
     
     # Call remote model
-    set modelStatus [catch {exec agy --print $prompt} modelRaw]
+    set modelStatus [catch {exec bin/llm --print $prompt} modelRaw]
     if {$modelStatus != 0} {
-        puts "\[ERROR\] Failed to execute agy CLI: $modelRaw"
+        puts "\[ERROR\] Failed to execute llm: $modelRaw"
         exit 1
     }
 
@@ -113,7 +136,6 @@ while {$retryCount < $maxRetries} {
     }
 
     puts "  -> Source file patched. Retrying compilation..."
-    incr retryCount
 }
 
 puts "=========================================================="
