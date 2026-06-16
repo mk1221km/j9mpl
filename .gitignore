@@ -16,3 +16,4 @@ scratch/
 .context/*.txt
 .context/methods.txt
 .context/extracted.sql
+.context/llm_usage.log
