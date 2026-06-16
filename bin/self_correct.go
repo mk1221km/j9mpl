@@ -236,7 +236,7 @@ func main() {
 		// 64 +++       pstmt.setString(1, invalidVarName)
 		//    +++                          ^^^^^^^^^^^^^^
 		//    +++ Error: Unknown variable
-		netrexxErrorRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s*\+\+\+\s*(.*?)\n\s*\+\+\+\s*([-^]+)\s*\n\s*\+\+\+\s*((?:Error|Warning):.*)`)
+		netrexxErrorRegex := regexp.MustCompile(`(?m)^\s*(\d+)\s*\+\+\+\s*(.*?)\n\s*\+\+\+\s*([-^]+)\s*\n\s*\+\+\+\s*(Error:.*)`)
 		nrcMatches := netrexxErrorRegex.FindStringSubmatch(nrcOutputStr)
 
 		if nrcErr != nil || nrcMatches != nil {

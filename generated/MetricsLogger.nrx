@@ -40,6 +40,28 @@ class MetricsLogger public
   end
 
   method logMetric(dbPath = String, record = MetricRecord) public static
+  conn = Connection null
+  stmt = PreparedStatement null
+  if dbPath \= null & dbPath \= "null" then do
+    do
+      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+      stmt = conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?)")
+      stmt.setString(1, record.timestamp)
+      stmt.setString(2, record.metricName)
+      stmt.setDouble(3, record.metricValue)
+      stmt.executeUpdate()
+    catch ex = SQLException
+      say "Error inserting metric: " || ex.getMessage()
+    finally
+      do
+        if stmt \= null then stmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
+    end
+  end
+return
 
   method getAverageMetric(dbPath = String, name = String) public static returns Rexx
   conn = Connection null
@@ -56,7 +78,7 @@ class MetricsLogger public
         avg = Rexx rs.getDouble(1)
       end
     catch ex = SQLException
-      say "Database average query error: " || ex.getMessage()
+      say "Error getting average: " || ex.getMessage()
     finally
       do
         if rs \= null then rs.close()

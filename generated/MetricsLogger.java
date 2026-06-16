@@ -1,4 +1,4 @@
-/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 17:22:05 [v5.10] */
+/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 17:40:44 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.Connection;
@@ -67,7 +67,38 @@ public class MetricsLogger{
  @SuppressWarnings("unchecked") 
  
  public static void logMetric(java.lang.String dbPath,com.factory.metrics.MetricRecord record){
-  return;}
+  java.sql.Connection conn;
+  java.sql.PreparedStatement stmt;
+  java.sql.SQLException ex=null;
+  conn=(java.sql.Connection)null;
+  stmt=(java.sql.PreparedStatement)null;
+  if ((dbPath!=null)&netrexx.lang.Rexx.toRexx(dbPath).OpNotEq(null,$01)) 
+   {
+    {try{
+     conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
+     stmt=conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?)");
+     stmt.setString(1,record.timestamp);
+     stmt.setString(2,record.metricName);
+     stmt.setDouble(3,record.metricValue.todouble());
+     stmt.executeUpdate();
+    }
+    catch (java.sql.SQLException $3){ex=$3;
+     netrexx.lang.RexxIO.Say("Error inserting metric: "+ex.getMessage());
+    }
+    finally{
+     {try{
+      if (stmt!=null) 
+       stmt.close();
+      if (conn!=null) 
+       conn.close();
+     }
+     catch (java.sql.SQLException $4){
+      ;
+     }}
+    }}
+   }
+  return;
+  }
  
  
  @SuppressWarnings("unchecked") 
@@ -94,8 +125,8 @@ public class MetricsLogger{
        avg=new netrexx.lang.Rexx(rs.getDouble(1));
       }
     }
-    catch (java.sql.SQLException $3){ex=$3;
-     netrexx.lang.RexxIO.Say("Database average query error: "+ex.getMessage());
+    catch (java.sql.SQLException $5){ex=$5;
+     netrexx.lang.RexxIO.Say("Error getting average: "+ex.getMessage());
     }
     finally{
      {try{
@@ -106,7 +137,7 @@ public class MetricsLogger{
       if (conn!=null) 
        conn.close();
      }
-     catch (java.sql.SQLException $4){
+     catch (java.sql.SQLException $6){
       ;
      }}
     }}

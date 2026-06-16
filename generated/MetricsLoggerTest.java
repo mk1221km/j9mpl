@@ -1,4 +1,4 @@
-/* Generated from 'MetricsLoggerTest.nrx' 16 Jun 2026 17:22:11 [v5.10] */
+/* Generated from 'MetricsLoggerTest.nrx' 16 Jun 2026 17:40:50 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.SQLException;

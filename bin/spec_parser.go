@@ -285,9 +285,9 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 
 	var prompt strings.Builder
 
-	// Layer 1: Static grammar exemplar from language_substrates table
+	// Layer 1: Static grammar exemplar from unified_exemplars table
 	var grammarPrefix, structuralExemplar string
-	err = db.QueryRow("SELECT grammar_prefix, structural_exemplar FROM language_substrates WHERE language_id = 'netrexx'").Scan(&grammarPrefix, &structuralExemplar)
+	err = db.QueryRow("SELECT fact_context_predicate, few_shot_prompt_block FROM unified_exemplars WHERE exemplar_id = 'NETREXX_GRAMMAR_BASICS'").Scan(&grammarPrefix, &structuralExemplar)
 	if err == nil {
 		prompt.WriteString("### LAYER 1: FIXED TARGET GRAMMAR EXEMPLAR\n")
 		prompt.WriteString(grammarPrefix)
@@ -314,9 +314,9 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	}
 	prompt.WriteString("\n")
 
-	// Layer 3: Exemplar Blocks (from exemplar_blocks table for SQLite/JDBC references)
+	// Layer 3: Exemplar Blocks (from unified_exemplars table for SQLite/JDBC references)
 	prompt.WriteString("### LAYER 3: JDBC/SQLITE REFERENCE EXEMPLARS\n")
-	rows, err := db.Query("SELECT source_snippet FROM exemplar_blocks WHERE language_id = 'netrexx' ORDER BY execution_priority DESC")
+	rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope = 'Database.SQLite'")
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
