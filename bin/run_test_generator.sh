@@ -28,9 +28,7 @@ sqlite3 -csv "${DB_PATH}" "SELECT symbol_uri, file_path, start_line, end_line FR
 echo "[2/3] Executing Rascal TestGenerator..."
 java -jar "${PROJECT_DIR}/rascal-shell-stable.jar" TestGenerator "${CLASS_NAME}" "${DECLS_CSV}" "${OUTPUT_NRX}"
 
-# Inject SQLite boundaries
-echo "[2.5/3] Injecting database boundary vectors..."
-python3 "${PROJECT_DIR}/scratch/inject_boundaries.py" "${OUTPUT_NRX}" "${DB_PATH}"
+# Boundaries are now natively generated and injected by the Rascal generator from .context/fuzzer_boundaries.json
 
 # 3. Clean up
 echo "[3/3] Cleaning up temporary files..."

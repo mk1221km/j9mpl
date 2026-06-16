@@ -1,0 +1,57 @@
+{
+  "String": [
+    {
+      "domain": "SQL_INJECTION",
+      "values": [
+        "' OR '1'='1",
+        "'; DROP TABLE system_metrics; --",
+        "' UNION SELECT null, null, null --"
+      ],
+      "expected": "SQLException"
+    },
+    {
+      "domain": "PATH_TRAVERSAL",
+      "values": [
+        "/etc/passwd",
+        "../../../etc/passwd",
+        "C:\\Windows\\win.ini",
+        "null"
+      ],
+      "expected": "IOException"
+    },
+    {
+      "domain": "EMPTY_NULL",
+      "values": [
+        "",
+        "null",
+        "   "
+      ],
+      "expected": "IllegalArgumentException"
+    }
+  ],
+  "double": [
+    {
+      "domain": "NUMERIC_OVERFLOW_DOUBLE",
+      "values": [
+        "1.7976931348623157e+308",
+        "-1.7976931348623157e+308",
+        "NaN",
+        "Infinity",
+        "-Infinity"
+      ],
+      "expected": "NumberFormatException"
+    }
+  ],
+  "int": [
+    {
+      "domain": "NUMERIC_OVERFLOW_INT",
+      "values": [
+        "2147483647",
+        "-2147483648",
+        "2147483648",
+        "-2147483649"
+      ],
+      "expected": "NumberFormatException"
+    }
+  ]
+}

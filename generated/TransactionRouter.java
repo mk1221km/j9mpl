@@ -1,4 +1,4 @@
-/* Generated from 'TransactionRouter.nrx' 16 Jun 2026 17:39:30 [v5.10] */
+/* Generated from 'TransactionRouter.nrx' 16 Jun 2026 17:53:46 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.routing;
 import java.sql.Connection;
@@ -48,11 +48,12 @@ public class TransactionRouter{
      stmt=conn.createStatement();
      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS routing_rules ("+"min_amount REAL, "+"priority TEXT, "+"channel TEXT, "+"PRIMARY KEY (min_amount, priority))");
      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS transaction_log ("+"tx_id TEXT PRIMARY KEY, "+"sender TEXT, "+"receiver TEXT, "+"amount REAL, "+"channel TEXT, "+"status TEXT)");
-     stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (0.0, \'low\', \'standard\')");
-     stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES (1000.0, \'high\', \'express\')");
+     stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES "+"(0.0, \'low\', \'standard\')");
+     stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES "+"(1000.0, \'high\', \'express\')");
+     stmt.executeUpdate("INSERT OR IGNORE INTO routing_rules (min_amount, priority, channel) VALUES "+"(5000.0, \'urgent\', \'premium\')");
     }
     catch (java.sql.SQLException $1){ex=$1;
-     netrexx.lang.RexxIO.Say("Database initialization error: "+ex.getMessage());
+     netrexx.lang.RexxIO.Say("Error initializing routing table: "+ex.getMessage());
     }
     finally{
      {try{
@@ -66,46 +67,48 @@ public class TransactionRouter{
      }}
     }}
    }
-  return;}
+  return;
+  }
  
  
  @SuppressWarnings("unchecked") 
  
  public static java.lang.String routeTransaction(java.lang.String dbPath,com.factory.routing.TransactionRecord record){
   java.sql.Connection conn;
-  java.sql.PreparedStatement stmtRules;
-  java.sql.PreparedStatement stmtLog;
+  java.sql.PreparedStatement stmt;
+  java.sql.PreparedStatement pstmt;
   java.sql.ResultSet rs;
   java.lang.String channel;
   java.sql.SQLException ex=null;
   conn=(java.sql.Connection)null;
-  stmtRules=(java.sql.PreparedStatement)null;
-  stmtLog=(java.sql.PreparedStatement)null;
+  stmt=(java.sql.PreparedStatement)null;
+  pstmt=(java.sql.PreparedStatement)null;
   rs=(java.sql.ResultSet)null;
   channel=(java.lang.String)null;
   if ((dbPath!=null)&netrexx.lang.Rexx.toRexx(dbPath).OpNotEq(null,$01)) 
    {
     {try{
      conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
-     stmtRules=conn.prepareStatement("SELECT channel FROM routing_rules WHERE min_amount <= ? AND priority = ? ORDER BY min_amount DESC LIMIT 1");
-     stmtRules.setDouble(1,record.amount.todouble());
-     stmtRules.setString(2,record.priority);
-     rs=stmtRules.executeQuery();
+     stmt=conn.prepareStatement("SELECT channel FROM routing_rules WHERE min_amount <= ? AND priority = ? ORDER BY min_amount DESC LIMIT 1");
+     stmt.setDouble(1,record.amount.todouble());
+     stmt.setString(2,record.priority);
+     rs=stmt.executeQuery();
      if (rs.next()) 
       {
-       channel=rs.getString("channel");
+       channel=rs.getString(1);
       }
-     if (channel!=null) 
+     else 
       {
-       stmtLog=conn.prepareStatement("INSERT INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?)");
-       stmtLog.setString(1,record.txId);
-       stmtLog.setString(2,record.sender);
-       stmtLog.setString(3,record.receiver);
-       stmtLog.setDouble(4,record.amount.todouble());
-       stmtLog.setString(5,channel);
-       stmtLog.setString(6,"pending");
-       stmtLog.executeUpdate();
+       channel="WIRE";
       }
+     pstmt=conn.prepareStatement("INSERT INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?)");
+     pstmt.setString(1,record.txId);
+     pstmt.setString(2,record.sender);
+     pstmt.setString(3,record.receiver);
+     pstmt.setDouble(4,record.amount.todouble());
+     pstmt.setString(5,channel);
+     pstmt.setString(6,"queued");
+     pstmt.executeUpdate();
     }
     catch (java.sql.SQLException $3){ex=$3;
      netrexx.lang.RexxIO.Say("Routing error: "+ex.getMessage());
@@ -114,10 +117,10 @@ public class TransactionRouter{
      {try{
       if (rs!=null) 
        rs.close();
-      if (stmtRules!=null) 
-       stmtRules.close();
-      if (stmtLog!=null) 
-       stmtLog.close();
+      if (stmt!=null) 
+       stmt.close();
+      if (pstmt!=null) 
+       pstmt.close();
       if (conn!=null) 
        conn.close();
      }
@@ -150,9 +153,7 @@ public class TransactionRouter{
      stmt.setString(1,status);
      rs=stmt.executeQuery();
      if (rs.next()) 
-      {
-       count=new netrexx.lang.Rexx(rs.getInt(1));
-      }
+      count=new netrexx.lang.Rexx(rs.getInt(1));
     }
     catch (java.sql.SQLException $5){ex=$5;
      netrexx.lang.RexxIO.Say("Database query error: "+ex.getMessage());

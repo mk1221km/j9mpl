@@ -8,7 +8,7 @@ class TransactionRouterTest public
     
     -- Boundary payloads
     stringBounds = ['normal_string_test', ''' OR ''1''=''1', '''; DROP TABLE system_metrics; --', ''' UNION SELECT null, null, null --', '/etc/passwd', '../../../etc/passwd', 'C:\\Windows\\win.ini', null, '', '   ']
-    dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
+    dbPathBounds = ['generated/transactionrouter_test.db', ':memory:', null]
     doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(1.7976931348623157e+308), Rexx(-1.7976931348623157e+308)]
     rexxBounds = [Rexx('normal'), Rexx(''), Rexx(0), Rexx(1), Rexx(-1), Rexx(2147483647), Rexx(-2147483648), Rexx(2147483648), Rexx(-2147483649)]
     

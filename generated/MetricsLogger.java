@@ -1,4 +1,4 @@
-/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 17:40:44 [v5.10] */
+/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 17:55:05 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.Connection;
@@ -97,8 +97,7 @@ public class MetricsLogger{
      }}
     }}
    }
-  return;
-  }
+  return;}
  
  
  @SuppressWarnings("unchecked") 
@@ -126,7 +125,7 @@ public class MetricsLogger{
       }
     }
     catch (java.sql.SQLException $5){ex=$5;
-     netrexx.lang.RexxIO.Say("Error getting average: "+ex.getMessage());
+     netrexx.lang.RexxIO.Say("Error fetching average metric: "+ex.getMessage());
     }
     finally{
      {try{
@@ -149,6 +148,35 @@ public class MetricsLogger{
  @SuppressWarnings("unchecked") 
  
  public static void main(java.lang.String args[]){
+  java.lang.String dbPath;
+  com.factory.metrics.MetricRecord rec1=null;
+  com.factory.metrics.MetricRecord rec2=null;
+  netrexx.lang.Rexx avg=null;
+  dbPath=(java.lang.String)null;
+  if (args.length>0) 
+   dbPath=args[0];
+  else 
+   dbPath="metrics.db";
+  if ((dbPath!=null)&netrexx.lang.Rexx.toRexx(dbPath).OpNotEq(null,$01)) 
+   {
+    com.factory.metrics.MetricsLogger.initDatabase(dbPath);
+    rec1=new com.factory.metrics.MetricRecord();
+    rec1.timestamp="2025-01-01T00:00:00";
+    rec1.metricName="cpu_usage";
+    rec1.metricValue=new netrexx.lang.Rexx("45.5");
+    com.factory.metrics.MetricsLogger.logMetric(dbPath,rec1);
+    rec2=new com.factory.metrics.MetricRecord();
+    rec2.timestamp="2025-01-01T00:01:00";
+    rec2.metricName="cpu_usage";
+    rec2.metricValue=new netrexx.lang.Rexx("50.2");
+    com.factory.metrics.MetricsLogger.logMetric(dbPath,rec2);
+    avg=com.factory.metrics.MetricsLogger.getAverageMetric(dbPath,"cpu_usage");
+    netrexx.lang.RexxIO.Say(netrexx.lang.Rexx.toRexx("Average CPU usage: ").OpCc(null,avg));
+   }
+  else 
+   {
+    netrexx.lang.RexxIO.Say("Invalid database path");
+   }
   return;}
  
  

@@ -3,6 +3,7 @@ module TestGenerator
 import IO;
 import String;
 import List;
+import lang::json::IO;
 
 // Parse parameter list into individual types
 list[str] parseParams(str paramsStr) {
@@ -27,6 +28,57 @@ str getBoundaryList(str paramType, str methodName, int paramIndex, str recordTyp
         return "recordBounds";
     }
     return "[\"null\"]";
+}
+
+alias BoundariesMap = map[str, list[map[str, value]]];
+
+str escapeRexxStr(str s) {
+    return replaceAll(replaceAll(s, "\\", "\\\\"), "\'", "\'\'");
+}
+
+list[str] getStringBounds(BoundariesMap bm) {
+    list[str] vals = ["normal_string_test"];
+    if ("String" in bm) {
+        for (item <- bm["String"]) {
+            if (list[value] vList := item["values"]) {
+                for (v <- vList) {
+                    vals += "<v>";
+                }
+            }
+        }
+    }
+    return dup(vals);
+}
+
+list[str] getDoubleBounds(BoundariesMap bm) {
+    list[str] vals = ["0", "1", "-1"];
+    if ("double" in bm) {
+        for (item <- bm["double"]) {
+            if (list[value] vList := item["values"]) {
+                for (v <- vList) {
+                    str s = "<v>";
+                    if (s != "NaN" && s != "Infinity" && s != "-Infinity") {
+                        vals += s;
+                    }
+                }
+            }
+        }
+    }
+    return dup(vals);
+}
+
+list[str] getIntBounds(BoundariesMap bm) {
+    list[str] vals = ["0", "1", "-1"];
+    if ("int" in bm) {
+        for (item <- bm["int"]) {
+            if (list[value] vList := item["values"]) {
+                for (v <- vList) {
+                    vals += "<v>";
+                }
+            }
+        }
+    }
+    return dup(vals);
 }
 
 void generateTest(str className, loc declsFile, loc testFile) {
@@ -132,12 +184,43 @@ void generateTest(str className, loc declsFile, loc testFile) {
     code += "class <className>Test public";
     code += "  method main(args = String[]) public static";
     code += "    say \"=== [Phase III] Starting Boundary Input Exhaustion Test for <className> ===\"";
+    loc boundariesLoc = declsFile;
+    boundariesLoc.path = replaceFirst(declsFile.path, "declarations.csv", "fuzzer_boundaries.json");
+    BoundariesMap bm = ();
+    try {
+        bm = readJSON(#BoundariesMap, boundariesLoc);
+    } catch ex: {
+        println("[WARNING] Failed to read fuzzer boundaries JSON file: <boundariesLoc>. Using defaults.");
+    }
+
+    list[str] strVals = getStringBounds(bm);
+    list[str] strReprs = [];
+    for (x <- strVals) {
+        if (x == "null") {
+            strReprs += "null";
+        } else {
+            strReprs += "\'<escapeRexxStr(x)>\'";
+        }
+    }
+    
+    list[str] doubleVals = getDoubleBounds(bm);
+    list[str] doubleReprs = [];
+    for (x <- doubleVals) {
+        doubleReprs += "Rexx(<x>)";
+    }
+
+    list[str] intVals = getIntBounds(bm);
+    list[str] rexxReprs = ["Rexx(\'normal\')", "Rexx(\'\')"];
+    for (x <- intVals) {
+        rexxReprs += "Rexx(<x>)";
+    }
+
     code += "    ";
     code += "    -- Boundary payloads";
-    code += "    stringBounds = [\"\", \"normal_string_test\", \"\'; DROP TABLE system_metrics; --\", \"null\"]";
-    code += "    dbPathBounds = [\"generated/metrics_test.db\", \":memory:\", \"null\"]";
-    code += "    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]";
-    code += "    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(\"normal\"), Rexx(\"\")]";
+    code += "    stringBounds = [<intercalate(", ", strReprs)>]";
+    code += "    dbPathBounds = [\'generated/<toLowerCase(className)>_test.db\', \':memory:\', null]";
+    code += "    doubleBounds = [<intercalate(", ", doubleReprs)>]";
+    code += "    rexxBounds = [<intercalate(", ", rexxReprs)>]";
     code += "    ";
     code += "    -- Build <recordType> boundary instances";
     code += "    recordBounds = java.util.ArrayList()";

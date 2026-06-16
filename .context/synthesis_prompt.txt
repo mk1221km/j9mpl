@@ -18,11 +18,15 @@
      "priority TEXT)")
    Without a trailing hyphen `-` at the end of the line, NetRexx treats the newline as the end of the statement, causing compilation errors.
 4. Exception Handling & DO Blocks:
-   Use do/catch/finally/end blocks. Every `do` must have a matching `end`.
+   Use do/catch/finally/end blocks. Every single `do` block (including `do`, `if ... then do`, `else do`, `loop while`, and `finally do`) MUST have exactly one matching `end` keyword. Do NOT generate extra or mismatched `end` keywords. Mismatched do/end counts cause compilation errors.
 5. Database Path Safety Guard:
    To prevent SQLite from physically creating a file named 'null' in the current working directory, you MUST guard all database connection code with `if dbPath \= null & dbPath \= "null" then do` before establishing a connection.
 6. Void Methods (Returning Nothing):
    In NetRexx, methods that do not return a value (void methods) MUST NOT have a `returns` clause. Do NOT write `returns void` or `returns none`. Simply omit the `returns` keyword and type completely. Example: `method logMetric(dbPath = String, record = MetricRecord) public static`.
+7. No Terminating 'end' for Methods:
+   NetRexx methods themselves do NOT have a terminating `end` keyword. The `end` keyword is strictly used to close structured blocks like `do`, `loop`, or `select`. Never place an `end` at the end of a method body unless it corresponds to a matching block opener.
+8. Exception Signaling Constraints:
+   You can ONLY catch checked exceptions (like `SQLException` or `Exception`) if a method that throws/signals them is actually called inside the corresponding `do` block. If a method does not execute any throwing database operations (e.g., the command line `main` driver, or basic helper methods), do NOT use a `do/catch/finally` block. Simply run the statements directly without try-catch blocks.
 
 class DatabaseTemplate public
   properties private static
@@ -61,11 +65,47 @@ class DatabaseTemplate public
 [FOUND] Class MetricsLogger exists in codebase (File: /home/me/code/j9mpl/generated/MetricsLoggerTest.java, URI: |java+class:///com/factory/metrics/MetricsLoggerTest|)
   - [FOUND] Method MetricsLogger.initDatabase (URI: |java+method:///com/factory/metrics/MetricsLogger/initDatabase(java.lang.String)|)
   - [FOUND] Method MetricsLogger.logMetric (URI: |java+method:///com/factory/metrics/MetricsLogger/logMetric(java.lang.String,com.factory.metrics.MetricRecord)|)
+  - [FOUND] Method MetricsLogger.getAverageMetric (URI: |java+method:///com/factory/metrics/MetricsLogger/getAverageMetric(java.lang.String,java.lang.String)|)
   - [FOUND] Method MetricsLogger.main (URI: |java+method:///com/factory/metrics/MetricsLogger/main(java.lang.String%5B%5D)|)
 
 
 
+### LAYER 2.5: HELPER CLASSES AND DATA TRANSFER OBJECTS (DTOs)
+Class MetricRecord represents data transfer structures and exposes public properties:
+- timestamp (String)
+- metricName (String)
+- metricValue (Rexx)
+
+
 ### LAYER 3: JDBC/SQLITE REFERENCE EXEMPLARS
+  method getRecordValue(dbPath = String, queryName = String) public static returns Rexx
+    conn = Connection null
+    stmt = PreparedStatement null
+    rs = ResultSet null
+    val = Rexx 0
+    if dbPath \= null & dbPath \= "null" then do
+      do
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        stmt = conn.prepareStatement("SELECT value FROM metrics WHERE name = ?")
+        stmt.setString(1, queryName)
+        rs = stmt.executeQuery()
+        if rs.next() then do
+          val = Rexx rs.getDouble(1)
+        end
+      catch ex = SQLException
+        say "Database query error: " || ex.getMessage()
+      finally
+        do
+          if rs \= null then rs.close()
+          if stmt \= null then stmt.close()
+          if conn \= null then conn.close()
+        catch SQLException
+          nop
+        end
+      end
+    end
+    return val
+
 ### LAYER 4: TARGET METHOD REQUIREMENTS
 Class: MetricsLogger
 Target Method Signature: method all() public static
@@ -73,11 +113,16 @@ Requirements: Generate all methods.
 
 Architectural Invariants & Database Schema:
 - **Database Engine:** SQLite
-- **Target Table:** `system_metrics`
+- **Target Table:** system_metrics
 - **Table Schema:**
-- `timestamp` TEXT
-- `name` TEXT
-- `value` REAL
+- timestamp TEXT
+- name TEXT
+- value REAL
 
-IMPORTANT: You MUST guard all database connection logic against null or empty/placeholder dbPath values. Since this method takes a 'dbPath = String' parameter, you MUST check `if dbPath \= null & dbPath \= "null" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.
-Output ONLY the complete NetRexx method block (starting with 'method all() public static' and ending with 'end' or after finally). Do not include the enclosing class, package, or imports. Do not wrap in markdown code blocks.
+IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:
+1. Variable declarations MUST follow the NetRexx syntax: 'varName = Type initialValue' (e.g. 'dbPath = String null', 'avg = Rexx 0', 'count = int 0'). Do NOT use Java-style declarations like 'Type varName = value' or 'String dbPath = null' as they will cause syntax errors.
+2. NetRexx methods do NOT have a terminating 'end' keyword at the method level. Only inner blocks like 'do', 'loop', and 'select' should be closed with 'end'. Do NOT append a trailing 'end' at the end of the method body.
+3. Checked exceptions (like Exception, SQLException) can ONLY be caught inside a 'do ... catch' block if the body of that 'do' block calls a method that is explicitly declared to throw/signal that exception. If no such method is called, catching checked exceptions is a compile-time error. For 'main', do not catch checked exceptions, or just catch 'RuntimeException' / 'Throwable', or avoid catch blocks entirely.
+4. You MUST guard all database connection logic against null or empty/placeholder dbPath values. Since this method takes a 'dbPath = String' parameter, you MUST check `if dbPath \= null & dbPath \= "null" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.
+5. Mismatched block and catch syntax: (a) Never write 'finally do' on the same line. If you need a try-catch block inside a finally clause, place 'finally' on its own line and start the 'do' block on the next line. (b) Every catch clause MUST follow NetRexx syntax: 'catch ex = ExceptionType' (e.g. 'catch ex = SQLException' or 'catch ex = Exception'). Never write 'catch Exception ex' or 'catch ex' without a type.
+Output ONLY the complete NetRexx method block starting with 'method all() public static'. Do not include the enclosing class, package, or imports. Do not wrap in markdown code blocks.

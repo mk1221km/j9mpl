@@ -61,7 +61,6 @@ class MetricsLogger public
       end
     end
   end
-return
 
   method getAverageMetric(dbPath = String, name = String) public static returns Rexx
   conn = Connection null
@@ -78,7 +77,7 @@ return
         avg = Rexx rs.getDouble(1)
       end
     catch ex = SQLException
-      say "Error getting average: " || ex.getMessage()
+      say "Error fetching average metric: " || ex.getMessage()
     finally
       do
         if rs \= null then rs.close()
@@ -92,4 +91,25 @@ return
   return avg
 
   method main(args = String[]) public static
+  dbPath = String null
+  if args.length > 0 then dbPath = args[0]
+  else dbPath = String "metrics.db"
+  if dbPath \= null & dbPath \= "null" then do
+    MetricsLogger.initDatabase(dbPath)
+    rec1 = MetricRecord()
+    rec1.timestamp = "2025-01-01T00:00:00"
+    rec1.metricName = "cpu_usage"
+    rec1.metricValue = 45.5
+    MetricsLogger.logMetric(dbPath, rec1)
+    rec2 = MetricRecord()
+    rec2.timestamp = "2025-01-01T00:01:00"
+    rec2.metricName = "cpu_usage"
+    rec2.metricValue = 50.2
+    MetricsLogger.logMetric(dbPath, rec2)
+    avg = MetricsLogger.getAverageMetric(dbPath, "cpu_usage")
+    say "Average CPU usage: " || avg
+  end
+  else do
+    say "Invalid database path"
+  end
 

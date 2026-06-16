@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -410,6 +411,13 @@ func main() {
 	contextDir := filepath.Join(projectDir, ".context")
 	os.MkdirAll(contextDir, 0755)
 
+	// Extract fuzzer boundaries from SQLite to .context/fuzzer_boundaries.json
+	err = ExtractFuzzerBoundaries(dbPath, filepath.Join(contextDir, "fuzzer_boundaries.json"))
+	if err != nil {
+		fmt.Printf("Error extracting fuzzer boundaries: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Write methods list
 	var methodNames []string
 	var targetClass *SpecClass
@@ -486,4 +494,54 @@ func main() {
 	if err == nil {
 		os.WriteFile(filepath.Join(contextDir, "synthesis_prompt.txt"), []byte(fallbackPrompt), 0644)
 	}
+}
+
+type BoundaryItem struct {
+	Domain   string   `json:"domain"`
+	Values   []string `json:"values"`
+	Expected string   `json:"expected"`
+}
+
+func ExtractFuzzerBoundaries(dbPath string, outputPath string) error {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT exemplar_id, fact_context_predicate, input_state_payload, expected_output_state FROM unified_exemplars WHERE domain_scope = 'Fuzzer.Boundary'")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	boundaries := make(map[string][]BoundaryItem)
+
+	for rows.Next() {
+		var exemplarId, targetPrimitive, inputStatePayload, expectedOutputState string
+		if err := rows.Scan(&exemplarId, &targetPrimitive, &inputStatePayload, &expectedOutputState); err != nil {
+			return err
+		}
+
+		var values []string
+		if err := json.Unmarshal([]byte(inputStatePayload), &values); err != nil {
+			// fallback if it's not a valid json array (should be though)
+			values = []string{inputStatePayload}
+		}
+
+		item := BoundaryItem{
+			Domain:   exemplarId,
+			Values:   values,
+			Expected: expectedOutputState,
+		}
+
+		boundaries[targetPrimitive] = append(boundaries[targetPrimitive], item)
+	}
+
+	jsonBytes, err := json.MarshalIndent(boundaries, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(outputPath, jsonBytes, 0644)
 }
