@@ -329,6 +329,24 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		}
 	}
 
+	// Layer 3.5: Local Machine-Verified Reference Implementations (Few-Shots)
+	prompt.WriteString("### LAYER 3.5: LOCAL MACHINE-VERIFIED REFERENCE IMPLEMENTATIONS (FEW-SHOTS)\n")
+	prompt.WriteString("The following NetRexx implementations have been machine-verified as correct, secure, and compliant with all invariants. Use them as reference patterns:\n\n")
+	implRows, err := db.Query("SELECT exemplar_id, fact_context_predicate, few_shot_prompt_block FROM unified_exemplars WHERE domain_scope = 'Implementation.NetRexx'")
+	if err == nil {
+		defer implRows.Close()
+		for implRows.Next() {
+			var exID, predicate, snippet string
+			if err := implRows.Scan(&exID, &predicate, &snippet); err == nil {
+				prompt.WriteString(fmt.Sprintf("Exemplar: %s\n", exID))
+				prompt.WriteString(fmt.Sprintf("Specification Context: %s\n", predicate))
+				prompt.WriteString("Implementation:\n")
+				prompt.WriteString(snippet)
+				prompt.WriteString("\n\n")
+			}
+		}
+	}
+
 	// Layer 4: Specific Method Target Requirements
 	prompt.WriteString("### LAYER 4: TARGET METHOD REQUIREMENTS\n")
 	prompt.WriteString(fmt.Sprintf("Class: %s\n", mainClassName))

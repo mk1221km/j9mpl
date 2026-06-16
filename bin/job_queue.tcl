@@ -139,7 +139,7 @@ proc updateMainLedger {} {
 }
 
 proc handleOutput {pipe className} {
-    global active activeCount exitCode
+    global active activeCount exitCode projectDir
     if {[gets $pipe line] >= 0} {
         puts "\[$className\]: $line"
     }
@@ -154,6 +154,16 @@ proc handleOutput {pipe className} {
             mergeWorkspace $className
             cleanupWorkspace $className
             updateMainLedger
+            set nrxPath [file join $projectDir "generated" "$className.nrx"]
+            if {[file exists $nrxPath]} {
+                puts "\[INFO\] Accreting verified exemplars for $className..."
+                set dbPath [file join $projectDir ".context" "project_context.db"]
+                if {[catch {exec bin/accrete_exemplars $dbPath $className $nrxPath} accreteMsg]} {
+                    puts "\[WARNING\] accrete_exemplars failed: $accreteMsg"
+                } else {
+                    puts "\[INFO\] Accretion completed successfully:\n$accreteMsg"
+                }
+            }
         } else {
             puts "\[ERROR\] Job $className failed: $err"
             cleanupWorkspace $className
