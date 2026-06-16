@@ -67,9 +67,40 @@ systemd-run --user --scope --description=Factory-Fuzzer-Sandbox -p MemoryMax=512
 ```
 This isolates the fuzzer execution, ensuring that malicious inputs (like path traversal attempts or resource depletion payloads) cannot escape into the host environment.
 
+## 4. The Exemplar Imperative & Mechanics of `unified_exemplars`
+
+A core architectural principle of `j9mpl` is that **verified exemplars are the ultimate high-value assets of a software manufacturing plant.** Instead of treating code synthesis as a transient event where an LLM repeatedly guesses interfaces from scratch, successfully verified code blocks, boundary payloads, and structural contracts are permanently captured as an accreted data asset.
+
+This exemplar repository serves as a bridge integrating:
+* **Human Modeling**: Definitive, unambiguous specifications of desired behavior.
+* **Compiler Verification**: Objective proof from compilers (`ecj`, `nrc`) and the sandboxed fuzzer that the code handles stress cleanly.
+* **Neural Worker Memory**: High-quality, few-shot contexts that anchor the remote LLM, preventing semantic drift (like H2 database hallucinations).
+
+### Centralized SQLite Invariant Ledger
+
+To manage these constraints as first-class database assets, all fuzzing payloads and boundary parameters are consolidated into the **`unified_exemplars`** table in SQLite:
+
+```sql
+CREATE TABLE IF NOT EXISTS unified_exemplars (
+    exemplar_id           TEXT PRIMARY KEY,
+    context_domain        TEXT,         -- e.g., 'SQL_Injection', 'Path_Traversal', 'Numeric_Overflow'
+    input_payload         TEXT,         -- The raw fuzzing string or boundary value
+    is_counter_example    INTEGER,      -- 0 for Happy Path, 1 for Out-of-Bounds
+    expected_output_state TEXT,         -- e.g., 'java.sql.SQLException', 'java.io.IOException'
+    verification_status   TEXT          -- 'VERIFIED', 'PENDING'
+);
+```
+
+### Ingestion and Utilization Lifecycle
+
+1. **Ingestion**: When a new boundary condition or edge case is solved, the pattern is inserted into `unified_exemplars`.
+2. **Extraction & Materialization**: During a workspace run, [spec_parser.go](file:///home/me/code/j9mpl/bin/spec_parser.go) queries this table and exports the boundaries to [.context/fuzzer_boundaries.json](file:///home/me/code/j9mpl/.context/fuzzer_boundaries.json).
+3. **Metaprogramming Ingestion**: The Rascal test generator ([TestGenerator.rsc](file:///home/me/code/j9mpl/src/TestGenerator.rsc)) reads the JSON boundaries file and generates property-based test harness arrays (`*Bounds`) directly into the AST of the `_Test.nrx` script.
+4. **Execution & Verification**: The sandbox executes the fuzzer test suite, verifying that every counter-example throws the exact expected exception signature, mathematically closing the verification loop.
+
 ---
 
-## 4. Key NetRexx & Toolchain Gotchas
+## 5. Key NetRexx & Toolchain Gotchas
 
 > [!IMPORTANT]
 > Keep these critical constraints in mind when writing or refining code in the `j9mpl` environment.
@@ -90,7 +121,7 @@ This isolates the fuzzer execution, ensuring that malicious inputs (like path tr
 
 ---
 
-## 5. Running a Workspace Build
+## 6. Running a Workspace Build
 To run a clean build and verify all specifications:
 ```bash
 # Executing the supervisor job queue
