@@ -1,0 +1,17 @@
+package com.factory.telemetry
+import com.sun.net.httpserver.HttpExchange
+
+class TelemetryRecord private
+  properties public
+    deviceId = String
+    voltage  = Rexx
+    status   = String
+
+class TelemetryEngine public
+  method processData(exchange = HttpExchange, rec = TelemetryRecord) public static
+    if rec.voltage < 12.0 then do
+      rec.status = "FAULT: UNDERVOLTAGE"
+    end
+    else do
+      rec.status = "OPERATIONAL"
+    end

@@ -1,0 +1,222 @@
+package com.factory.routing
+options binary
+import java.sql.SQLException
+import com.factory.routing.TransactionRecord
+import com.factory.routing.TransactionRouter
+
+class TransactionRouterTest public
+  method main(args = String[]) public static
+    say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
+    
+    -- Boundary payloads
+    stringBounds = [FuzzInput('normal_string_test', 0, null), FuzzInput('cpu_usage', 0, null), FuzzInput('standard_channel', 0, null), FuzzInput(''' OR ''1''=''1', 1, 'java.sql.SQLException'), FuzzInput('''; DROP TABLE system_metrics; --', 1, 'java.sql.SQLException'), FuzzInput(''' UNION SELECT null, null, null --', 1, 'java.sql.SQLException'), FuzzInput('generated/metrics_test.db', 0, null), FuzzInput('metrics.db', 0, null), FuzzInput('routing.db', 0, null), FuzzInput('/etc/passwd', 1, 'java.io.IOException'), FuzzInput('../../../etc/passwd', 1, 'java.io.IOException'), FuzzInput('C:\\Windows\\win.ini', 1, 'java.io.IOException'), FuzzInput('normal_string', 0, null), FuzzInput('', 1, 'java.lang.IllegalArgumentException'), FuzzInput(null, 1, 'java.lang.IllegalArgumentException'), FuzzInput('   ', 1, 'java.lang.IllegalArgumentException')]
+    dbPathBounds = [FuzzInput('generated/transactionrouter_test.db', 0, null), FuzzInput(':memory:', 0, null), FuzzInput(null, 1, 'java.lang.IllegalArgumentException')]
+    doubleBounds = [FuzzInput('0', 0, null), FuzzInput('1', 0, null), FuzzInput('-1', 0, null), FuzzInput('1.5', 0, null), FuzzInput('-45.2', 0, null), FuzzInput('100.0', 0, null), FuzzInput('1.7976931348623157e+308', 0, null), FuzzInput('-1.7976931348623157e+308', 0, null), FuzzInput('1.7976931348623159e+308', 1, 'java.lang.NumberFormatException'), FuzzInput('-1.7976931348623159e+308', 1, 'java.lang.NumberFormatException')]
+    rexxBounds = [FuzzInput('normal', 0, null), FuzzInput('', 0, null), FuzzInput('0', 0, null), FuzzInput('1', 0, null), FuzzInput('-1', 0, null), FuzzInput('100', 0, null), FuzzInput('-50', 0, null), FuzzInput('999', 0, null), FuzzInput('2147483647', 0, null), FuzzInput('-2147483648', 0, null), FuzzInput('2147483648', 1, 'java.lang.NumberFormatException'), FuzzInput('-2147483649', 1, 'java.lang.NumberFormatException')]
+    
+    -- Build TransactionRecord boundary instances
+    recordBounds = java.util.ArrayList()
+    recordBounds.add(RecordFuzzInput(null, 1, 'java.lang.IllegalArgumentException'))
+    loop tsVal over stringBounds
+      loop nameVal over stringBounds
+        loop valVal over doubleBounds
+          rec = TransactionRecord()
+          if tsVal.val \== null then rec.priority = String tsVal.val
+          if nameVal.val \== null then rec.receiver = String nameVal.val
+          if tsVal.val \== null then rec.sender = String tsVal.val
+          if valVal.val \== null then rec.amount = Rexx(valVal.val)
+          if nameVal.val \== null then rec.txId = String nameVal.val
+          recIsCounter = tsVal.isCounter | nameVal.isCounter | valVal.isCounter
+          recExpected = String null
+          if tsVal.isCounter \= 0 then do
+            recExpected = tsVal.expected
+          end
+          else if nameVal.isCounter \= 0 then do
+            recExpected = nameVal.expected
+          end
+          else if valVal.isCounter \= 0 then do
+            recExpected = valVal.expected
+          end
+          counterCount = tsVal.isCounter + nameVal.isCounter + valVal.isCounter
+          if counterCount == 0 | counterCount == 1 then do
+            recordBounds.add(RecordFuzzInput(rec, recIsCounter, recExpected))
+          end
+        end
+      end
+    end
+    if stringBounds \== null & dbPathBounds \== null & doubleBounds \== null & rexxBounds \== null & recordBounds \== null then say "ok"
+
+    say "Testing method routeTransaction..."
+    loop routeTransaction_val1 over dbPathBounds
+      routeTransaction_val1_input = FuzzInput routeTransaction_val1
+      routeTransaction_p1 = java.lang.String null
+      loop routeTransaction_val2 over recordBounds
+        routeTransaction_val2_input = RecordFuzzInput routeTransaction_val2
+        routeTransaction_p2 = com.factory.routing.TransactionRecord null
+        routeTransaction_counterCount = int 0
+        if routeTransaction_val1_input.isCounter \= 0 then routeTransaction_counterCount = routeTransaction_counterCount + 1
+        if routeTransaction_val2_input.isCounter \= 0 then routeTransaction_counterCount = routeTransaction_counterCount + 1
+        if routeTransaction_counterCount <= 1 then do
+          routeTransaction_expectedEx = String null
+          if routeTransaction_val1_input.isCounter \= 0 then do
+            routeTransaction_expectedEx = routeTransaction_val1_input.expected
+          end
+          if routeTransaction_val2_input.isCounter \= 0 then do
+            routeTransaction_expectedEx = routeTransaction_val2_input.expected
+          end
+          do
+            if 1 == 0 then TransactionRouterTest.dummySignal()
+            if routeTransaction_val1_input.val \== null then routeTransaction_p1 = routeTransaction_val1_input.val
+            routeTransaction_p2 = routeTransaction_val2_input.rec
+            TransactionRouter.routeTransaction(routeTransaction_p1, routeTransaction_p2)
+            if routeTransaction_expectedEx \== null then do
+              say "Assertion Failure in routeTransaction: counter-example bypassed validation (no exception thrown). Expected: " || routeTransaction_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if routeTransaction_expectedEx == null then do
+              say "Assertion Failure in routeTransaction: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(routeTransaction_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== routeTransaction_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in routeTransaction: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || routeTransaction_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
+        end
+      end
+    end
+    say "  Method routeTransaction boundary exhaustion completed."
+
+    say "Testing method initRoutingTable..."
+    loop initRoutingTable_val1 over dbPathBounds
+      initRoutingTable_val1_input = FuzzInput initRoutingTable_val1
+      initRoutingTable_p1 = java.lang.String null
+      initRoutingTable_counterCount = int 0
+      if initRoutingTable_val1_input.isCounter \= 0 then initRoutingTable_counterCount = initRoutingTable_counterCount + 1
+      if initRoutingTable_counterCount <= 1 then do
+        initRoutingTable_expectedEx = String null
+        if initRoutingTable_val1_input.isCounter \= 0 then do
+          initRoutingTable_expectedEx = initRoutingTable_val1_input.expected
+        end
+        do
+          if 1 == 0 then TransactionRouterTest.dummySignal()
+          if initRoutingTable_val1_input.val \== null then initRoutingTable_p1 = initRoutingTable_val1_input.val
+          TransactionRouter.initRoutingTable(initRoutingTable_p1)
+          if initRoutingTable_expectedEx \== null then do
+            say "Assertion Failure in initRoutingTable: counter-example bypassed validation (no exception thrown). Expected: " || initRoutingTable_expectedEx
+            java.lang.System.exit(1)
+          end
+        catch caughtEx = Throwable
+          thrownClass = caughtEx.getClass().getName()
+          if initRoutingTable_expectedEx == null then do
+            say "Assertion Failure in initRoutingTable: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+            caughtEx.printStackTrace()
+            java.lang.System.exit(1)
+          end
+          else do
+            matched = int 0
+            do
+              expectedClass = java.lang.Class.forName(initRoutingTable_expectedEx)
+              if expectedClass.isInstance(caughtEx) then matched = 1
+            catch ClassNotFoundException
+              if thrownClass \== initRoutingTable_expectedEx then matched = 1
+            end
+            if matched == 0 then do
+              say "Assertion Failure in initRoutingTable: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || initRoutingTable_expectedEx
+              java.lang.System.exit(1)
+            end
+          end
+        end
+      end
+    end
+    say "  Method initRoutingTable boundary exhaustion completed."
+
+    say "Testing method getTransactionCount..."
+    loop getTransactionCount_val1 over dbPathBounds
+      getTransactionCount_val1_input = FuzzInput getTransactionCount_val1
+      getTransactionCount_p1 = java.lang.String null
+      loop getTransactionCount_val2 over stringBounds
+        getTransactionCount_val2_input = FuzzInput getTransactionCount_val2
+        getTransactionCount_p2 = java.lang.String null
+        getTransactionCount_counterCount = int 0
+        if getTransactionCount_val1_input.isCounter \= 0 then getTransactionCount_counterCount = getTransactionCount_counterCount + 1
+        if getTransactionCount_val2_input.isCounter \= 0 then getTransactionCount_counterCount = getTransactionCount_counterCount + 1
+        if getTransactionCount_counterCount <= 1 then do
+          getTransactionCount_expectedEx = String null
+          if getTransactionCount_val1_input.isCounter \= 0 then do
+            getTransactionCount_expectedEx = getTransactionCount_val1_input.expected
+          end
+          if getTransactionCount_val2_input.isCounter \= 0 then do
+            getTransactionCount_expectedEx = getTransactionCount_val2_input.expected
+          end
+          do
+            if 1 == 0 then TransactionRouterTest.dummySignal()
+            if getTransactionCount_val1_input.val \== null then getTransactionCount_p1 = getTransactionCount_val1_input.val
+            if getTransactionCount_val2_input.val \== null then getTransactionCount_p2 = getTransactionCount_val2_input.val
+            TransactionRouter.getTransactionCount(getTransactionCount_p1, getTransactionCount_p2)
+            if getTransactionCount_expectedEx \== null then do
+              say "Assertion Failure in getTransactionCount: counter-example bypassed validation (no exception thrown). Expected: " || getTransactionCount_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if getTransactionCount_expectedEx == null then do
+              say "Assertion Failure in getTransactionCount: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(getTransactionCount_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== getTransactionCount_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in getTransactionCount: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || getTransactionCount_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
+        end
+      end
+    end
+    say "  Method getTransactionCount boundary exhaustion completed."
+
+    say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
+
+  method dummySignal() private static signals java.lang.Throwable
+    nop
+
+class FuzzInput
+  properties public
+    val = String
+    isCounter = int
+    expected = String
+  method FuzzInput(aVal = String, aIsCounter = int, aExpected = String)
+    this.val = aVal
+    this.isCounter = aIsCounter
+    this.expected = aExpected
+
+class RecordFuzzInput
+  properties public
+    rec = TransactionRecord
+    isCounter = int
+    expected = String
+  method RecordFuzzInput(aRec = TransactionRecord, aIsCounter = int, aExpected = String)
+    this.rec = aRec
+    this.isCounter = aIsCounter
+    this.expected = aExpected

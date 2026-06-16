@@ -1,0 +1,10 @@
+package com.factory.routing
+options binary
+
+class TransactionRecord public
+  properties public
+    txId = String
+    sender = String
+    receiver = String
+    amount = Rexx
+    priority = String

@@ -1,0 +1,220 @@
+package com.factory.metrics
+options binary
+import java.sql.SQLException
+import com.factory.metrics.MetricRecord
+import com.factory.metrics.MetricsLogger
+
+class MetricsLoggerTest public
+  method main(args = String[]) public static
+    say "=== [Phase III] Starting Boundary Input Exhaustion Test for MetricsLogger ==="
+    
+    -- Boundary payloads
+    stringBounds = [FuzzInput('normal_string_test', 0, null), FuzzInput('cpu_usage', 0, null), FuzzInput('standard_channel', 0, null), FuzzInput(''' OR ''1''=''1', 1, 'java.sql.SQLException'), FuzzInput('''; DROP TABLE system_metrics; --', 1, 'java.sql.SQLException'), FuzzInput(''' UNION SELECT null, null, null --', 1, 'java.sql.SQLException'), FuzzInput('generated/metrics_test.db', 0, null), FuzzInput('metrics.db', 0, null), FuzzInput('routing.db', 0, null), FuzzInput('/etc/passwd', 1, 'java.io.IOException'), FuzzInput('../../../etc/passwd', 1, 'java.io.IOException'), FuzzInput('C:\\Windows\\win.ini', 1, 'java.io.IOException'), FuzzInput('normal_string', 0, null), FuzzInput('', 1, 'java.lang.IllegalArgumentException'), FuzzInput(null, 1, 'java.lang.IllegalArgumentException'), FuzzInput('   ', 1, 'java.lang.IllegalArgumentException')]
+    dbPathBounds = [FuzzInput('generated/metricslogger_test.db', 0, null), FuzzInput(':memory:', 0, null), FuzzInput(null, 1, 'java.lang.IllegalArgumentException')]
+    doubleBounds = [FuzzInput('0', 0, null), FuzzInput('1', 0, null), FuzzInput('-1', 0, null), FuzzInput('1.5', 0, null), FuzzInput('-45.2', 0, null), FuzzInput('100.0', 0, null), FuzzInput('1.7976931348623157e+308', 0, null), FuzzInput('-1.7976931348623157e+308', 0, null), FuzzInput('1.7976931348623159e+308', 1, 'java.lang.NumberFormatException'), FuzzInput('-1.7976931348623159e+308', 1, 'java.lang.NumberFormatException')]
+    rexxBounds = [FuzzInput('normal', 0, null), FuzzInput('', 0, null), FuzzInput('0', 0, null), FuzzInput('1', 0, null), FuzzInput('-1', 0, null), FuzzInput('100', 0, null), FuzzInput('-50', 0, null), FuzzInput('999', 0, null), FuzzInput('2147483647', 0, null), FuzzInput('-2147483648', 0, null), FuzzInput('2147483648', 1, 'java.lang.NumberFormatException'), FuzzInput('-2147483649', 1, 'java.lang.NumberFormatException')]
+    
+    -- Build MetricRecord boundary instances
+    recordBounds = java.util.ArrayList()
+    recordBounds.add(RecordFuzzInput(null, 1, 'java.lang.IllegalArgumentException'))
+    loop tsVal over stringBounds
+      loop nameVal over stringBounds
+        loop valVal over doubleBounds
+          rec = MetricRecord()
+          if tsVal.val \== null then rec.timestamp = String tsVal.val
+          if nameVal.val \== null then rec.metricName = String nameVal.val
+          if valVal.val \== null then rec.metricValue = Rexx(valVal.val)
+          recIsCounter = tsVal.isCounter | nameVal.isCounter | valVal.isCounter
+          recExpected = String null
+          if tsVal.isCounter \= 0 then do
+            recExpected = tsVal.expected
+          end
+          else if nameVal.isCounter \= 0 then do
+            recExpected = nameVal.expected
+          end
+          else if valVal.isCounter \= 0 then do
+            recExpected = valVal.expected
+          end
+          counterCount = tsVal.isCounter + nameVal.isCounter + valVal.isCounter
+          if counterCount == 0 | counterCount == 1 then do
+            recordBounds.add(RecordFuzzInput(rec, recIsCounter, recExpected))
+          end
+        end
+      end
+    end
+    if stringBounds \== null & dbPathBounds \== null & doubleBounds \== null & rexxBounds \== null & recordBounds \== null then say "ok"
+
+    say "Testing method logMetric..."
+    loop logMetric_val1 over dbPathBounds
+      logMetric_val1_input = FuzzInput logMetric_val1
+      logMetric_p1 = java.lang.String null
+      loop logMetric_val2 over recordBounds
+        logMetric_val2_input = RecordFuzzInput logMetric_val2
+        logMetric_p2 = com.factory.metrics.MetricRecord null
+        logMetric_counterCount = int 0
+        if logMetric_val1_input.isCounter \= 0 then logMetric_counterCount = logMetric_counterCount + 1
+        if logMetric_val2_input.isCounter \= 0 then logMetric_counterCount = logMetric_counterCount + 1
+        if logMetric_counterCount <= 1 then do
+          logMetric_expectedEx = String null
+          if logMetric_val1_input.isCounter \= 0 then do
+            logMetric_expectedEx = logMetric_val1_input.expected
+          end
+          if logMetric_val2_input.isCounter \= 0 then do
+            logMetric_expectedEx = logMetric_val2_input.expected
+          end
+          do
+            if 1 == 0 then MetricsLoggerTest.dummySignal()
+            if logMetric_val1_input.val \== null then logMetric_p1 = logMetric_val1_input.val
+            logMetric_p2 = logMetric_val2_input.rec
+            MetricsLogger.logMetric(logMetric_p1, logMetric_p2)
+            if logMetric_expectedEx \== null then do
+              say "Assertion Failure in logMetric: counter-example bypassed validation (no exception thrown). Expected: " || logMetric_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if logMetric_expectedEx == null then do
+              say "Assertion Failure in logMetric: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(logMetric_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== logMetric_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in logMetric: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || logMetric_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
+        end
+      end
+    end
+    say "  Method logMetric boundary exhaustion completed."
+
+    say "Testing method getAverageMetric..."
+    loop getAverageMetric_val1 over dbPathBounds
+      getAverageMetric_val1_input = FuzzInput getAverageMetric_val1
+      getAverageMetric_p1 = java.lang.String null
+      loop getAverageMetric_val2 over stringBounds
+        getAverageMetric_val2_input = FuzzInput getAverageMetric_val2
+        getAverageMetric_p2 = java.lang.String null
+        getAverageMetric_counterCount = int 0
+        if getAverageMetric_val1_input.isCounter \= 0 then getAverageMetric_counterCount = getAverageMetric_counterCount + 1
+        if getAverageMetric_val2_input.isCounter \= 0 then getAverageMetric_counterCount = getAverageMetric_counterCount + 1
+        if getAverageMetric_counterCount <= 1 then do
+          getAverageMetric_expectedEx = String null
+          if getAverageMetric_val1_input.isCounter \= 0 then do
+            getAverageMetric_expectedEx = getAverageMetric_val1_input.expected
+          end
+          if getAverageMetric_val2_input.isCounter \= 0 then do
+            getAverageMetric_expectedEx = getAverageMetric_val2_input.expected
+          end
+          do
+            if 1 == 0 then MetricsLoggerTest.dummySignal()
+            if getAverageMetric_val1_input.val \== null then getAverageMetric_p1 = getAverageMetric_val1_input.val
+            if getAverageMetric_val2_input.val \== null then getAverageMetric_p2 = getAverageMetric_val2_input.val
+            MetricsLogger.getAverageMetric(getAverageMetric_p1, getAverageMetric_p2)
+            if getAverageMetric_expectedEx \== null then do
+              say "Assertion Failure in getAverageMetric: counter-example bypassed validation (no exception thrown). Expected: " || getAverageMetric_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if getAverageMetric_expectedEx == null then do
+              say "Assertion Failure in getAverageMetric: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(getAverageMetric_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== getAverageMetric_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in getAverageMetric: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || getAverageMetric_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
+        end
+      end
+    end
+    say "  Method getAverageMetric boundary exhaustion completed."
+
+    say "Testing method initDatabase..."
+    loop initDatabase_val1 over dbPathBounds
+      initDatabase_val1_input = FuzzInput initDatabase_val1
+      initDatabase_p1 = java.lang.String null
+      initDatabase_counterCount = int 0
+      if initDatabase_val1_input.isCounter \= 0 then initDatabase_counterCount = initDatabase_counterCount + 1
+      if initDatabase_counterCount <= 1 then do
+        initDatabase_expectedEx = String null
+        if initDatabase_val1_input.isCounter \= 0 then do
+          initDatabase_expectedEx = initDatabase_val1_input.expected
+        end
+        do
+          if 1 == 0 then MetricsLoggerTest.dummySignal()
+          if initDatabase_val1_input.val \== null then initDatabase_p1 = initDatabase_val1_input.val
+          MetricsLogger.initDatabase(initDatabase_p1)
+          if initDatabase_expectedEx \== null then do
+            say "Assertion Failure in initDatabase: counter-example bypassed validation (no exception thrown). Expected: " || initDatabase_expectedEx
+            java.lang.System.exit(1)
+          end
+        catch caughtEx = Throwable
+          thrownClass = caughtEx.getClass().getName()
+          if initDatabase_expectedEx == null then do
+            say "Assertion Failure in initDatabase: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+            caughtEx.printStackTrace()
+            java.lang.System.exit(1)
+          end
+          else do
+            matched = int 0
+            do
+              expectedClass = java.lang.Class.forName(initDatabase_expectedEx)
+              if expectedClass.isInstance(caughtEx) then matched = 1
+            catch ClassNotFoundException
+              if thrownClass \== initDatabase_expectedEx then matched = 1
+            end
+            if matched == 0 then do
+              say "Assertion Failure in initDatabase: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || initDatabase_expectedEx
+              java.lang.System.exit(1)
+            end
+          end
+        end
+      end
+    end
+    say "  Method initDatabase boundary exhaustion completed."
+
+    say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
+
+  method dummySignal() private static signals java.lang.Throwable
+    nop
+
+class FuzzInput
+  properties public
+    val = String
+    isCounter = int
+    expected = String
+  method FuzzInput(aVal = String, aIsCounter = int, aExpected = String)
+    this.val = aVal
+    this.isCounter = aIsCounter
+    this.expected = aExpected
+
+class RecordFuzzInput
+  properties public
+    rec = MetricRecord
+    isCounter = int
+    expected = String
+  method RecordFuzzInput(aRec = MetricRecord, aIsCounter = int, aExpected = String)
+    this.rec = aRec
+    this.isCounter = aIsCounter
+    this.expected = aExpected

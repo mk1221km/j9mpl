@@ -1,0 +1,212 @@
+package com.factory.routing
+options binary
+import java.sql.DriverManager
+import java.sql.Connection
+import java.sql.Statement
+import java.sql.PreparedStatement
+import java.sql.ResultSet
+import java.sql.SQLException
+
+class TransactionRouter public
+  method validatePath(path = String) private static
+    if path == null then signal java.lang.IllegalArgumentException("path must not be null")
+    if path.trim().length() == 0 then signal java.lang.IllegalArgumentException("path must not be empty")
+    if path.indexOf("..") >= 0 | path.startsWith("/etc/") | path.indexOf("C:\\Windows") >= 0 | path.startsWith("C:\\") then -
+      signal java.io.IOException("Path traversal blocked")
+    if path.indexOf("' OR '1'='1") >= 0 | path.indexOf("; DROP TABLE") >= 0 | path.indexOf("' UNION SELECT") >= 0 then -
+      signal java.sql.SQLException("SQL Injection blocked")
+
+  method validateStringField(fieldName = String, value = String) private static
+    if value == null then signal java.lang.IllegalArgumentException(fieldName || " must not be null")
+    if value.trim().length() == 0 then signal java.lang.IllegalArgumentException(fieldName || " must not be empty")
+    if value.indexOf("..") >= 0 | value.startsWith("/etc/") | value.indexOf("C:\\Windows") >= 0 | value.startsWith("C:\\") then -
+      signal java.io.IOException("Path traversal blocked in " || fieldName)
+    if value.indexOf("' OR '1'='1") >= 0 | value.indexOf("; DROP TABLE") >= 0 | value.indexOf("' UNION SELECT") >= 0 then -
+      signal java.sql.SQLException("SQL Injection blocked in " || fieldName)
+
+  method validateNumericField(fieldName = String, value = Rexx) private static
+    if value == null then signal java.lang.NumberFormatException(fieldName || " must not be null")
+    valStr = value.toString()
+    if valStr.trim().length() == 0 then signal java.lang.NumberFormatException(fieldName || " must not be empty")
+    do
+      dVal = Double.parseDouble(valStr)
+      if Double.isNaN(dVal) | Double.isInfinite(dVal) then signal java.lang.NumberFormatException("Invalid double")
+    catch exNum = NumberFormatException
+      signal java.lang.NumberFormatException("Invalid number format in " || fieldName)
+    end
+
+  method initRoutingTable(dbPath = String) public static
+    validatePath(dbPath)
+    if dbPath \== null then if dbPath \== "null" then do
+      conn = Connection null
+      stmt = Statement null
+      pstmt = PreparedStatement null
+      do
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        stmt = conn.createStatement()
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS routing_rules (" || -
+          "min_amount REAL, " || -
+          "priority TEXT, " || -
+          "channel TEXT, " || -
+          "PRIMARY KEY (min_amount, priority)" || -
+          ")")
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS transaction_log (" || -
+          "tx_id TEXT PRIMARY KEY, " || -
+          "sender TEXT, " || -
+          "receiver TEXT, " || -
+          "amount REAL, " || -
+          "channel TEXT, " || -
+          "status TEXT" || -
+          ")")
+        pstmt = conn.prepareStatement("INSERT OR IGNORE INTO routing_rules " || -
+          "(min_amount, priority, channel) VALUES (?, ?, ?)")
+        pstmt.setDouble(1, 0.0)
+        pstmt.setString(2, "low")
+        pstmt.setString(3, "bank")
+        pstmt.executeUpdate()
+        pstmt.setDouble(1, 1000.0)
+        pstmt.setString(2, "medium")
+        pstmt.setString(3, "card")
+        pstmt.executeUpdate()
+        pstmt.setDouble(1, 5000.0)
+        pstmt.setString(2, "high")
+        pstmt.setString(3, "wire")
+        pstmt.executeUpdate()
+      catch exSql = SQLException
+        say "Database error in initRoutingTable: " || exSql.getMessage()
+      finally
+        do
+          if pstmt \== null then pstmt.close()
+          if stmt \== null then stmt.close()
+          if conn \== null then conn.close()
+        catch SQLException
+          nop
+        end
+      end
+    end
+
+  method routeTransaction(dbPath = String, record = TransactionRecord) public static returns String
+    validatePath(dbPath)
+    if record == null then signal java.lang.IllegalArgumentException("record must not be null")
+    validateStringField("txId", record.txId)
+    validateStringField("sender", record.sender)
+    validateStringField("receiver", record.receiver)
+    validateStringField("priority", record.priority)
+    validateNumericField("amount", record.amount)
+
+    conn = Connection null
+    stmt = PreparedStatement null
+    pstmt = PreparedStatement null
+    rs = ResultSet null
+    channel = String null
+    
+    if dbPath \== null then if dbPath \== "null" then do
+      do
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        stmt = conn.prepareStatement("SELECT channel FROM routing_rules WHERE min_amount <= ? AND LOWER(priority) = LOWER(?) ORDER BY min_amount DESC LIMIT 1")
+        stmt.setDouble(1, Double.parseDouble(record.amount.toString()))
+        stmt.setString(2, record.priority)
+        rs = stmt.executeQuery()
+        if rs.next() then do
+          channel = rs.getString(1)
+        end
+        else do
+          channel = "wire" -- fallback
+        end
+        pstmt = conn.prepareStatement("INSERT INTO transaction_log (tx_id, sender, receiver, amount, channel, status) VALUES (?, ?, ?, ?, ?, ?)")
+        pstmt.setString(1, record.txId)
+        pstmt.setString(2, record.sender)
+        pstmt.setString(3, record.receiver)
+        pstmt.setDouble(4, Double.parseDouble(record.amount.toString()))
+        pstmt.setString(5, channel)
+        pstmt.setString(6, "queued")
+        pstmt.executeUpdate()
+      catch exSql = SQLException
+        say "Database error in routeTransaction: " || exSql.getMessage()
+      finally
+        do
+          if rs \== null then rs.close()
+          if stmt \== null then stmt.close()
+          if pstmt \== null then pstmt.close()
+          if conn \== null then conn.close()
+        catch SQLException
+          nop
+        end
+      end
+    end
+    return channel
+
+  method getTransactionCount(dbPath = String, status = String) public static returns Rexx
+    validatePath(dbPath)
+    validateStringField("status", status)
+
+    conn = Connection null
+    stmt = PreparedStatement null
+    rs = ResultSet null
+    count = Rexx 0
+    
+    if dbPath \== null then if dbPath \== "null" then do
+      do
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        if status.equals("ALL") | status.equals("all") then do
+          stmt = conn.prepareStatement("SELECT COUNT(*) FROM transaction_log")
+        end
+        else do
+          stmt = conn.prepareStatement("SELECT COUNT(*) FROM transaction_log WHERE LOWER(status) = LOWER(?)")
+          stmt.setString(1, status)
+        end
+        rs = stmt.executeQuery()
+        if rs.next() then do
+          count = Rexx rs.getInt(1)
+        end
+      catch exSql = SQLException
+        say "Database error in getTransactionCount: " || exSql.getMessage()
+      finally
+        do
+          if rs \== null then rs.close()
+          if stmt \== null then stmt.close()
+          if conn \== null then conn.close()
+        catch SQLException
+          nop
+        end
+      end
+    end
+    return count
+
+  method main(args = String[]) public static
+    dbPath = String null
+    if args.length > 0 then dbPath = args[0]
+    else dbPath = String "runtime.db"
+    
+    do
+      validatePath(dbPath)
+      initRoutingTable(dbPath)
+      
+      record1 = TransactionRecord()
+      record1.txId = "TXN001"
+      record1.sender = "Alice"
+      record1.receiver = "Bob"
+      record1.amount = Rexx 150.50
+      record1.priority = "high"
+      
+      record2 = TransactionRecord()
+      record2.txId = "TXN002"
+      record2.sender = "Charlie"
+      record2.receiver = "Dave"
+      record2.amount = Rexx 75.00
+      record2.priority = "low"
+      
+      ch1 = routeTransaction(dbPath, record1)
+      ch2 = routeTransaction(dbPath, record2)
+      
+      say "Route 1 Channel: " || ch1
+      say "Route 2 Channel: " || ch2
+      
+      highCount = getTransactionCount(dbPath, "queued")
+      totalCount = getTransactionCount(dbPath, "ALL")
+      
+      say "Queued count: " || highCount
+      say "Total count: " || totalCount
+    catch ex = Exception
+      ex.printStackTrace()
+    end
