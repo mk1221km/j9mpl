@@ -41,16 +41,15 @@ Both targets were executed sequentially through the job supervisor queue, achiev
 
 ---
 
-## 3. The Unified Exemplar Ledger Migration & Verification (Phase IV)
+## 3. The Unified Exemplar Ledger & AST Boundary Matching (Phase IV)
 
 During this development cycle, the database schema consolidation and spec parser integration were successfully completed and verified:
-1. **Database Migration:** The database migration script `scratch/migration_unified_exemplars.py` was executed, creating the unified ledger table `unified_exemplars` in `.context/project_context.db`. Legacy tables (`language_substrates` and `exemplar_blocks`) were dropped.
-2. **Parser Updates:** We modified `bin/spec_parser.go` to route context prompt generation queries through `unified_exemplars`:
-   * **Layer 1:** Ingests the grammar basics using `exemplar_id = 'NETREXX_GRAMMAR_BASICS'`.
-   * **Layer 3:** Ingests relational template exemplars using `domain_scope = 'Database.SQLite'`.
-3. **Toolchain Warning Hardening:** We updated `bin/self_correct.go` to prevent NetRexx compiler warnings (such as unused catch variables like `catch ex2 = SQLException`) from falsely triggering code correction failures, compiling successfully on Turn-1.
-4. **End-to-End Validation:** Ran `tclsh bin/job_queue.tcl generated/TransactionRouterSpec.md generated/MetricsLoggerSpec.md`, converging and executing all sandboxed property verification tests with exit code 0.
+1. **Consolidated Schema Migration:** Executed `scratch/migration_fuzzer_exemplars.py` to migrate all boundary fuzzer vectors from the legacy `test_exemplars` table to the `unified_exemplars` table (under `domain_scope = 'Fuzzer.Boundary'`), dropping the legacy table afterwards.
+2. **Dynamic JSON Payload Extraction:** Updated [bin/spec_parser.go](file:///home/me/code/j9mpl/bin/spec_parser.go) to query boundaries from `unified_exemplars` and output them as a structured type-grouped JSON dictionary at [.context/fuzzer_boundaries.json](file:///home/me/code/j9mpl/.context/fuzzer_boundaries.json) during skeleton parsing.
+3. **Native Metaprogramming Array Injection:** Updated [src/TestGenerator.rsc](file:///home/me/code/j9mpl/src/TestGenerator.rsc) to natively parse the JSON boundaries file and generate the NetRexx arrays (`stringBounds`, `doubleBounds`, `rexxBounds`) directly into `_Test.nrx` files.
+4. **Decoupled External Script Dependency:** Removed the legacy python injector `scratch/inject_boundaries.py` and modified [bin/run_test_generator.sh](file:///home/me/code/j9mpl/bin/run_test_generator.sh), keeping fuzzer generation entirely self-contained within the compiled binaries and Rascal compiler.
+5. **End-to-End Validation:** Ran `tclsh bin/job_queue.tcl generated/TransactionRouterSpec.md generated/MetricsLoggerSpec.md` sequentially. The pipeline converged and successfully executed all sandboxed fuzzer tests with exit code 0.
 
 ## 4. Next Session Goals
-* **AST Type Mapping:** Further integrate type-directed fuzzer payloads inside the database exemplars with the automated Rascal-to-SQLite test generator.
+* **Harness Exception Assertion Gate:** Integrate the `expected_output_state` field from `unified_exemplars` directly into the sandboxed fuzzer catch blocks to execute assert validations on target exceptions.
 * **Unified Pipeline Indexing:** Ensure re-indexing hooks dynamically reflect schema validation rules across the unified ledger.
