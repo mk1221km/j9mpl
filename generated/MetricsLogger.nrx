@@ -7,14 +7,6 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 
-class MetricsLoggerDummy private
-
-class MetricRecord shared
-  properties public
-    timestamp = String
-    metricName = String
-    metricValue = Rexx
-
 class MetricsLogger public
   method validatePath(path = String) private static
     if path == null then signal java.lang.IllegalArgumentException("path must not be null")

@@ -1,4 +1,4 @@
-/* Generated from 'TransactionRouter.nrx' 16 Jun 2026 22:47:00 [v5.10] */
+/* Generated from 'TransactionRouter.nrx' 16 Jun 2026 23:10:42 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.routing;
 import java.sql.Connection;
@@ -7,26 +7,6 @@ import java.sql.Statement;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.DriverManager;
-
-
-class TransactionRouterDummy{
- private static final java.lang.String $0="TransactionRouter.nrx";
- 
- public TransactionRouterDummy(){return;}
- }
-
-
-class TransactionRecord{
- private static final java.lang.String $0="TransactionRouter.nrx";
- /* properties public */
- public java.lang.String txId;
- public java.lang.String sender;
- public java.lang.String receiver;
- public netrexx.lang.Rexx amount;
- public java.lang.String priority;
- 
- public TransactionRecord(){return;}
- }
 
 
 public class TransactionRouter{

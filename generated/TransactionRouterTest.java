@@ -1,7 +1,9 @@
-/* Generated from 'TransactionRouterTest.nrx' 16 Jun 2026 22:47:10 [v5.10] */
+/* Generated from 'TransactionRouterTest.nrx' 16 Jun 2026 23:10:54 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.routing;
+import com.factory.routing.TransactionRecord;
 import java.sql.SQLException;
+import com.factory.routing.TransactionRouter;
 
 
 public class TransactionRouterTest{
@@ -59,7 +61,7 @@ public class TransactionRouterTest{
   {int $3=0;com.factory.routing.FuzzInput[] $2=new com.factory.routing.FuzzInput[stringBounds.length];synchronized(stringBounds){for(;;){if($3==$2.length)break;$2[$3]=stringBounds[stringBounds.length-1-$3];$3++;}}tsVal:for(;;){if(--$3<0)break;tsVal=(com.factory.routing.FuzzInput)$2[$3];
    {int $6=0;com.factory.routing.FuzzInput[] $5=new com.factory.routing.FuzzInput[stringBounds.length];synchronized(stringBounds){for(;;){if($6==$5.length)break;$5[$6]=stringBounds[stringBounds.length-1-$6];$6++;}}nameVal:for(;;){if(--$6<0)break;nameVal=(com.factory.routing.FuzzInput)$5[$6];
     {int $9=0;com.factory.routing.FuzzInput[] $8=new com.factory.routing.FuzzInput[doubleBounds.length];synchronized(doubleBounds){for(;;){if($9==$8.length)break;$8[$9]=doubleBounds[doubleBounds.length-1-$9];$9++;}}valVal:for(;;){if(--$9<0)break;valVal=(com.factory.routing.FuzzInput)$8[$9];
-     rec=new com.factory.routing.TransactionRecord();
+     rec=new TransactionRecord();
      if (tsVal.val!=null) 
       rec.priority=tsVal.val;
      if (nameVal.val!=null) 
@@ -125,7 +127,7 @@ public class TransactionRouterTest{
      if (routeTransaction_val1_input.val!=null) 
       routeTransaction_p1=routeTransaction_val1_input.val;
      routeTransaction_p2=routeTransaction_val2_input.rec;
-     com.factory.routing.TransactionRouter.routeTransaction(routeTransaction_p1,routeTransaction_p2);
+     TransactionRouter.routeTransaction(routeTransaction_p1,routeTransaction_p2);
     }
     catch (java.lang.Throwable $16){routeTransaction_caught=$16;
      routeTransaction_ex=routeTransaction_caught;
@@ -153,7 +155,7 @@ public class TransactionRouterTest{
      com.factory.routing.TransactionRouterTest.dummySignal();
     if (initRoutingTable_val1_input.val!=null) 
      initRoutingTable_p1=initRoutingTable_val1_input.val;
-    com.factory.routing.TransactionRouter.initRoutingTable(initRoutingTable_p1);
+    TransactionRouter.initRoutingTable(initRoutingTable_p1);
    }
    catch (java.lang.Throwable $20){initRoutingTable_caught=$20;
     initRoutingTable_ex=initRoutingTable_caught;
@@ -189,7 +191,7 @@ public class TransactionRouterTest{
       getTransactionCount_p1=getTransactionCount_val1_input.val;
      if (getTransactionCount_val2_input.val!=null) 
       getTransactionCount_p2=getTransactionCount_val2_input.val;
-     com.factory.routing.TransactionRouter.getTransactionCount(getTransactionCount_p1,getTransactionCount_p2);
+     TransactionRouter.getTransactionCount(getTransactionCount_p1,getTransactionCount_p2);
     }
     catch (java.lang.Throwable $27){getTransactionCount_caught=$27;
      getTransactionCount_ex=getTransactionCount_caught;

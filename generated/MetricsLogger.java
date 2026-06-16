@@ -1,4 +1,4 @@
-/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 22:47:32 [v5.10] */
+/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 23:11:22 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.Connection;
@@ -7,24 +7,6 @@ import java.sql.Statement;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.DriverManager;
-
-
-class MetricsLoggerDummy{
- private static final java.lang.String $0="MetricsLogger.nrx";
- 
- public MetricsLoggerDummy(){return;}
- }
-
-
-class MetricRecord{
- private static final java.lang.String $0="MetricsLogger.nrx";
- /* properties public */
- public java.lang.String timestamp;
- public java.lang.String metricName;
- public netrexx.lang.Rexx metricValue;
- 
- public MetricRecord(){return;}
- }
 
 
 public class MetricsLogger{

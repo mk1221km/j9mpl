@@ -1,7 +1,9 @@
-/* Generated from 'MetricsLoggerTest.nrx' 16 Jun 2026 22:47:43 [v5.10] */
+/* Generated from 'MetricsLoggerTest.nrx' 16 Jun 2026 23:11:34 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
+import com.factory.metrics.MetricRecord;
 import java.sql.SQLException;
+import com.factory.metrics.MetricsLogger;
 
 
 public class MetricsLoggerTest{
@@ -59,7 +61,7 @@ public class MetricsLoggerTest{
   {int $3=0;com.factory.metrics.FuzzInput[] $2=new com.factory.metrics.FuzzInput[stringBounds.length];synchronized(stringBounds){for(;;){if($3==$2.length)break;$2[$3]=stringBounds[stringBounds.length-1-$3];$3++;}}tsVal:for(;;){if(--$3<0)break;tsVal=(com.factory.metrics.FuzzInput)$2[$3];
    {int $6=0;com.factory.metrics.FuzzInput[] $5=new com.factory.metrics.FuzzInput[stringBounds.length];synchronized(stringBounds){for(;;){if($6==$5.length)break;$5[$6]=stringBounds[stringBounds.length-1-$6];$6++;}}nameVal:for(;;){if(--$6<0)break;nameVal=(com.factory.metrics.FuzzInput)$5[$6];
     {int $9=0;com.factory.metrics.FuzzInput[] $8=new com.factory.metrics.FuzzInput[doubleBounds.length];synchronized(doubleBounds){for(;;){if($9==$8.length)break;$8[$9]=doubleBounds[doubleBounds.length-1-$9];$9++;}}valVal:for(;;){if(--$9<0)break;valVal=(com.factory.metrics.FuzzInput)$8[$9];
-     rec=new com.factory.metrics.MetricRecord();
+     rec=new MetricRecord();
      if (tsVal.val!=null) 
       rec.timestamp=tsVal.val;
      if (nameVal.val!=null) 
@@ -121,7 +123,7 @@ public class MetricsLoggerTest{
      if (logMetric_val1_input.val!=null) 
       logMetric_p1=logMetric_val1_input.val;
      logMetric_p2=logMetric_val2_input.rec;
-     com.factory.metrics.MetricsLogger.logMetric(logMetric_p1,logMetric_p2);
+     MetricsLogger.logMetric(logMetric_p1,logMetric_p2);
     }
     catch (java.lang.Throwable $16){logMetric_caught=$16;
      logMetric_ex=logMetric_caught;
@@ -159,7 +161,7 @@ public class MetricsLoggerTest{
       getAverageMetric_p1=getAverageMetric_val1_input.val;
      if (getAverageMetric_val2_input.val!=null) 
       getAverageMetric_p2=getAverageMetric_val2_input.val;
-     com.factory.metrics.MetricsLogger.getAverageMetric(getAverageMetric_p1,getAverageMetric_p2);
+     MetricsLogger.getAverageMetric(getAverageMetric_p1,getAverageMetric_p2);
     }
     catch (java.lang.Throwable $23){getAverageMetric_caught=$23;
      getAverageMetric_ex=getAverageMetric_caught;
@@ -187,7 +189,7 @@ public class MetricsLoggerTest{
      com.factory.metrics.MetricsLoggerTest.dummySignal();
     if (initDatabase_val1_input.val!=null) 
      initDatabase_p1=initDatabase_val1_input.val;
-    com.factory.metrics.MetricsLogger.initDatabase(initDatabase_p1);
+    MetricsLogger.initDatabase(initDatabase_p1);
    }
    catch (java.lang.Throwable $27){initDatabase_caught=$27;
     initDatabase_ex=initDatabase_caught;

@@ -115,8 +115,8 @@ void generateTest(str className, loc declsFile, loc testFile) {
         if (/java\+method:\/\/\/<classPath:[a-zA-Z0-9_\/]+>\/<clsName:\w+>\/<methodName:\w+>\(<params:[^)]*>\)/ := line) {
             if (clsName == className) {
                 packageName = replaceAll(classPath, "/", ".");
-                // Skip constructor or main method for boundary exhaustion
-                if (methodName != className && methodName != "main") {
+                // Skip constructor, main, and validate helper methods for boundary exhaustion
+                if (methodName != className && methodName != "main" && !startsWith(methodName, "validate")) {
                     methods += <methodName, parseParams(params)>;
                 }
             }
@@ -194,6 +194,8 @@ void generateTest(str className, loc declsFile, loc testFile) {
     code += "package <packageName>";
     code += "options binary";
     code += "import java.sql.SQLException";
+    code += "import <packageName>.<recordType>";
+    code += "import <packageName>.<className>";
     code += "";
     code += "class <className>Test public";
     code += "  method main(args = String[]) public static";

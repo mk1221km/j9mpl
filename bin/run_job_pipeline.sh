@@ -17,6 +17,15 @@ echo "[2/5] Incremental Synthesis mode active. Class skeleton generated."
 # 3. Compile/self-correct main class
 echo "[3/5] Cleaning stale generation artifacts..."
 rm -f "generated/${CLASS_NAME}.java"
+
+# Compile helper record classes first if they exist
+for rec in generated/*Record.nrx; do
+  if [ -f "$rec" ]; then
+    echo "[3/5] Compiling helper record class ${rec}..."
+    ./bin/self_correct_loop.tcl "$rec"
+  fi
+done
+
 echo "[3/5] Compiling and self-correcting main class..."
 ./bin/self_correct_loop.tcl "generated/${CLASS_NAME}.nrx"
 

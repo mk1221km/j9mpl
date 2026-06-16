@@ -1,6 +1,8 @@
 package com.factory.metrics
 options binary
 import java.sql.SQLException
+import com.factory.metrics.MetricRecord
+import com.factory.metrics.MetricsLogger
 
 class MetricsLoggerTest public
   method main(args = String[]) public static

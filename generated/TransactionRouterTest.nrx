@@ -1,6 +1,8 @@
 package com.factory.routing
 options binary
 import java.sql.SQLException
+import com.factory.routing.TransactionRecord
+import com.factory.routing.TransactionRouter
 
 class TransactionRouterTest public
   method main(args = String[]) public static
