@@ -1,4 +1,4 @@
-/* Generated from 'MetricRecord.nrx' 16 Jun 2026 23:47:38 [v5.10] */
+/* Generated from 'MetricRecord.nrx' 17 Jun 2026 00:28:40 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 
