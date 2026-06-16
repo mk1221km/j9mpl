@@ -25,4 +25,8 @@
             <version>3.45.1.0</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <sourceDirectory>generated</sourceDirectory>
+    </build>
 </project>
