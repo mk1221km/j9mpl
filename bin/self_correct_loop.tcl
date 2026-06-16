@@ -72,7 +72,17 @@ cd $projectDir
 set isTest [string match "*Test.nrx" $nrxFile]
 set runIncremental 0
 if {!$isTest && [file exists [file join $projectDir ".context" "methods.txt"]]} {
-    set runIncremental 1
+    set nrxContent ""
+    if {[file exists $nrxFile]} {
+        set fd [open $nrxFile r]
+        set nrxContent [read $fd]
+        close $fd
+    }
+    if {[string match "*SKELETON_*" $nrxContent]} {
+        set runIncremental 1
+    } else {
+        puts "\[INFO\] No skeleton markers found in $nrxFile. Skipping incremental synthesis."
+    }
 }
 
 if {$runIncremental} {
@@ -152,12 +162,17 @@ if {$runIncremental} {
                 exit 1
             }
 
+            puts "  -> Raw model output length: [string length $modelRaw]"
+            puts "  -> Raw model output:\n$modelRaw\n----------------------"
+
             # Extract block from code fences if present
-            set parts [split $modelRaw "```"]
+            set normalizedRaw [string map {"```" "\u0000"} $modelRaw]
+            set parts [split $normalizedRaw "\u0000"]
             if {[llength $parts] >= 3} {
                 puts "  -> Extracting block from code fences..."
                 set revisedBlock [lindex $parts 1]
-                regsub -nocase {^(?:rexx)?\n} $revisedBlock "" revisedBlock
+                puts "  -> Extracted block:\n$revisedBlock\n----------------------"
+                regsub -nocase {^(?:rexx|netrexx)?\n} $revisedBlock "" revisedBlock
             } else {
                 puts "  -> Using raw model output..."
                 set revisedBlock $modelRaw
@@ -297,11 +312,16 @@ if {$runIncremental} {
             exit 1
         }
 
-        set parts [split $modelRaw "```"]
+        puts "  -> Raw model output length: [string length $modelRaw]"
+        puts "  -> Raw model output:\n$modelRaw\n----------------------"
+
+        set normalizedRaw [string map {"```" "\u0000"} $modelRaw]
+        set parts [split $normalizedRaw "\u0000"]
         if {[llength $parts] >= 3} {
             puts "  -> Extracting block from code fences..."
             set revisedBlock [lindex $parts 1]
-            regsub -nocase {^(?:rexx)?\n} $revisedBlock "" revisedBlock
+            puts "  -> Extracted block:\n$revisedBlock\n----------------------"
+            regsub -nocase {^(?:rexx|netrexx)?\n} $revisedBlock "" revisedBlock
         } else {
             puts "  -> Using raw model output..."
             set revisedBlock $modelRaw

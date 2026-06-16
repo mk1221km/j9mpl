@@ -73,6 +73,12 @@ proc setupWorkspace {className specPath} {
     # Copy spec markdown file
     file copy $specPath [file join $jobDir "generated" [file tail $specPath]]
     
+    # Copy existing synthesized class file if present to preserve manual refinement
+    set srcNrx [file join $projectDir "generated" "$className.nrx"]
+    if {[file exists $srcNrx]} {
+        file copy $srcNrx [file join $jobDir "generated" "$className.nrx"]
+    }
+    
     # Link read-only directories
     file link [file join $jobDir "lib"] [file join $projectDir "lib"]
     file link [file join $jobDir "target"] [file join $projectDir "target"]

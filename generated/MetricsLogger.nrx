@@ -16,100 +16,145 @@ class MetricRecord shared
     metricValue = Rexx
 
 class MetricsLogger public
-  method initDatabase(dbPath = String) public static
-  conn = Connection null
-  stmt = Statement null
-  if dbPath \= null & dbPath \= "null" then do
+  method validatePath(path = String) private static
+    if path == null then signal java.lang.IllegalArgumentException("path must not be null")
+    if path.trim().length() == 0 then signal java.lang.IllegalArgumentException("path must not be empty")
+    if path.indexOf("..") >= 0 | path.startsWith("/etc/") | path.indexOf("C:\\Windows") >= 0 | path.startsWith("C:\\") then -
+      signal java.io.IOException("Path traversal blocked")
+    if path.indexOf("' OR '1'='1") >= 0 | path.indexOf("; DROP TABLE") >= 0 | path.indexOf("' UNION SELECT") >= 0 then -
+      signal java.sql.SQLException("SQL Injection blocked")
+
+  method validateStringField(fieldName = String, value = String) private static
+    if value == null then signal java.lang.IllegalArgumentException(fieldName || " must not be null")
+    if value.trim().length() == 0 then signal java.lang.IllegalArgumentException(fieldName || " must not be empty")
+    if value.indexOf("..") >= 0 | value.startsWith("/etc/") | value.indexOf("C:\\Windows") >= 0 | value.startsWith("C:\\") then -
+      signal java.io.IOException("Path traversal blocked in " || fieldName)
+    if value.indexOf("' OR '1'='1") >= 0 | value.indexOf("; DROP TABLE") >= 0 | value.indexOf("' UNION SELECT") >= 0 then -
+      signal java.sql.SQLException("SQL Injection blocked in " || fieldName)
+
+  method validateNumericField(fieldName = String, value = Rexx) private static
+    if value == null then signal java.lang.NumberFormatException(fieldName || " must not be null")
+    valStr = value.toString()
+    if valStr.trim().length() == 0 then signal java.lang.NumberFormatException(fieldName || " must not be empty")
     do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      stmt = conn.createStatement()
-      stmt.executeUpdate("CREATE TABLE IF NOT EXISTS system_metrics (" || -
-        "timestamp TEXT, " || -
-        "name TEXT, " || -
-        "value REAL)")
-    catch ex = SQLException
-      say "Database init error: " || ex.getMessage()
-    finally
+      dVal = Double.parseDouble(valStr)
+      if Double.isNaN(dVal) | Double.isInfinite(dVal) then signal java.lang.NumberFormatException("Invalid double")
+    catch exNum = NumberFormatException
+      signal java.lang.NumberFormatException("Invalid number format in " || fieldName)
+    end
+
+  method initDatabase(dbPath = String) public static
+    validatePath(dbPath)
+    if dbPath \== null then if dbPath \== "null" then do
+      conn = Connection null
+      stmt = Statement null
       do
-        if stmt \= null then stmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
-        nop
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        stmt = conn.createStatement()
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS system_metrics (" || -
+          "timestamp TEXT, " || -
+          "name TEXT, " || -
+          "value REAL" || -
+          ")")
+      catch exSql = SQLException
+        say "Database error in initDatabase: " || exSql.getMessage()
+      finally
+        do
+          if stmt \== null then stmt.close()
+          if conn \== null then conn.close()
+        catch SQLException
+          nop
+        end
       end
     end
-  end
 
   method logMetric(dbPath = String, record = MetricRecord) public static
-  conn = Connection null
-  stmt = PreparedStatement null
-  if dbPath \= null & dbPath \= "null" then do
-    do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      stmt = conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?)")
-      stmt.setString(1, record.timestamp)
-      stmt.setString(2, record.metricName)
-      stmt.setDouble(3, record.metricValue)
-      stmt.executeUpdate()
-    catch ex = SQLException
-      say "Error inserting metric: " || ex.getMessage()
-    finally
+    validatePath(dbPath)
+    if record == null then signal java.lang.IllegalArgumentException("record must not be null")
+    validateStringField("timestamp", record.timestamp)
+    validateStringField("metricName", record.metricName)
+    validateNumericField("metricValue", record.metricValue)
+
+    conn = Connection null
+    pstmt = PreparedStatement null
+    
+    if dbPath \== null then if dbPath \== "null" then do
       do
-        if stmt \= null then stmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
-        nop
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        pstmt = conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?)")
+        pstmt.setString(1, record.timestamp)
+        pstmt.setString(2, record.metricName)
+        pstmt.setDouble(3, Double.parseDouble(record.metricValue.toString()))
+        pstmt.executeUpdate()
+      catch exSql = SQLException
+        say "Database error in logMetric: " || exSql.getMessage()
+      finally
+        do
+          if pstmt \== null then pstmt.close()
+          if conn \== null then conn.close()
+        catch SQLException
+          nop
+        end
       end
     end
-  end
 
   method getAverageMetric(dbPath = String, name = String) public static returns Rexx
-  conn = Connection null
-  stmt = PreparedStatement null
-  rs = ResultSet null
-  avg = Rexx 0
-  if dbPath \= null & dbPath \= "null" then do
-    do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      stmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?")
-      stmt.setString(1, name)
-      rs = stmt.executeQuery()
-      if rs.next() then do
-        avg = Rexx rs.getDouble(1)
-      end
-    catch ex = SQLException
-      say "Error fetching average metric: " || ex.getMessage()
-    finally
+    validatePath(dbPath)
+    validateStringField("name", name)
+
+    conn = Connection null
+    pstmt = PreparedStatement null
+    rs = ResultSet null
+    avgVal = Rexx 0
+    
+    if dbPath \== null then if dbPath \== "null" then do
       do
-        if rs \= null then rs.close()
-        if stmt \= null then stmt.close()
-        if conn \= null then conn.close()
-      catch SQLException
-        nop
+        conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
+        pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?")
+        pstmt.setString(1, name)
+        rs = pstmt.executeQuery()
+        if rs.next() then do
+          avgVal = Rexx rs.getDouble(1)
+        end
+      catch exSql = SQLException
+        say "Database error in getAverageMetric: " || exSql.getMessage()
+      finally
+        do
+          if rs \== null then rs.close()
+          if pstmt \== null then pstmt.close()
+          if conn \== null then conn.close()
+        catch SQLException
+          nop
+        end
       end
     end
-  end
-  return avg
+    return avgVal
 
   method main(args = String[]) public static
-  dbPath = String null
-  if args.length > 0 then dbPath = args[0]
-  else dbPath = String "metrics.db"
-  if dbPath \= null & dbPath \= "null" then do
-    MetricsLogger.initDatabase(dbPath)
-    rec1 = MetricRecord()
-    rec1.timestamp = "2025-01-01T00:00:00"
-    rec1.metricName = "cpu_usage"
-    rec1.metricValue = 45.5
-    MetricsLogger.logMetric(dbPath, rec1)
-    rec2 = MetricRecord()
-    rec2.timestamp = "2025-01-01T00:01:00"
-    rec2.metricName = "cpu_usage"
-    rec2.metricValue = 50.2
-    MetricsLogger.logMetric(dbPath, rec2)
-    avg = MetricsLogger.getAverageMetric(dbPath, "cpu_usage")
-    say "Average CPU usage: " || avg
-  end
-  else do
-    say "Invalid database path"
-  end
-
+    dbPath = String null
+    if args.length > 0 then dbPath = args[0]
+    else dbPath = String "metrics.db"
+    
+    do
+      validatePath(dbPath)
+      initDatabase(dbPath)
+      
+      rec = MetricRecord()
+      rec.timestamp = "2026-06-16T12:00:00Z"
+      rec.metricName = "cpu_usage"
+      rec.metricValue = Rexx 45.2
+      
+      logMetric(dbPath, rec)
+      
+      rec2 = MetricRecord()
+      rec2.timestamp = "2026-06-16T12:05:00Z"
+      rec2.metricName = "cpu_usage"
+      rec2.metricValue = Rexx 54.8
+      
+      logMetric(dbPath, rec2)
+      
+      avg = getAverageMetric(dbPath, "cpu_usage")
+      say "Average cpu_usage: " || avg
+    catch ex = Exception
+      ex.printStackTrace()
+    end

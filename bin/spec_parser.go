@@ -348,12 +348,29 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	}
 	prompt.WriteString("\n")
 
-	prompt.WriteString("IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:\n")
+	prompt.WriteString("VALIDATION & EXCEPTION INVARIANTS:\n")
+	prompt.WriteString("You MUST validate all input arguments and their fields at the very beginning of the method (before any database operation or do-catch block) and throw/signal the expected exception types for invalid or boundary inputs:\n")
+	prompt.WriteString("1. If a String parameter (like dbPath, sender, receiver, etc.), or a record argument itself (like record), OR any String field of a record argument (e.g. record.timestamp, record.metricName, record.txId, record.sender, record.receiver, record.priority) is null, empty (\"\"), or contains only whitespace, you MUST throw/signal `java.lang.IllegalArgumentException` using the `signal` statement (e.g. `signal java.lang.IllegalArgumentException(\"Invalid input\")`).\n")
+	prompt.WriteString("2. If a String parameter, OR any String field of a record argument, represents a path traversal attempt (e.g. starts with \"/etc/\", contains \"..\", or contains \"C:\\\\Windows\" / starts with \"C:\\\\\"), you MUST throw/signal `java.io.IOException` using `signal java.io.IOException(\"Path traversal blocked\")`.\n")
+	prompt.WriteString("3. If a String parameter, OR any String field of a record argument, contains a SQL injection attempt (e.g. contains \"' OR '1'='1\", \"; DROP TABLE\", or \"' UNION SELECT\"), you MUST throw/signal `java.sql.SQLException` using `signal java.sql.SQLException(\"SQL Injection blocked\")`.\n")
+	prompt.WriteString("4. If a parameter, OR any field of a record argument, needs to be parsed as a number (like amount, metricValue, etc.), and the string/Rexx value is null or is not a valid number (e.g. \"NaN\", \"Infinity\", \"-Infinity\", overflows Double range, or overflows Constant/Integer range for integer parameters), you MUST throw/signal `java.lang.NumberFormatException` using `signal java.lang.NumberFormatException(\"Invalid number format\")`.\n")
+	prompt.WriteString("Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.\n\n")
+
+ 	prompt.WriteString("IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:\n")
 	prompt.WriteString("1. Variable declarations MUST follow the NetRexx syntax: 'varName = Type initialValue' (e.g. 'dbPath = String null', 'avg = Rexx 0', 'count = int 0'). Do NOT use Java-style declarations like 'Type varName = value' or 'String dbPath = null' as they will cause syntax errors.\n")
 	prompt.WriteString("2. NetRexx methods do NOT have a terminating 'end' keyword at the method level. Only inner blocks like 'do', 'loop', and 'select' should be closed with 'end'. Do NOT append a trailing 'end' at the end of the method body.\n")
 	prompt.WriteString("3. Checked exceptions (like Exception, SQLException) can ONLY be caught inside a 'do ... catch' block if the body of that 'do' block calls a method that is explicitly declared to throw/signal that exception. If no such method is called, catching checked exceptions is a compile-time error. For 'main', do not catch checked exceptions, or just catch 'RuntimeException' / 'Throwable', or avoid catch blocks entirely.\n")
-	prompt.WriteString("4. You MUST guard all database connection logic against null or empty/placeholder dbPath values. Since this method takes a 'dbPath = String' parameter, you MUST check `if dbPath \\= null & dbPath \\= \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory.\n")
+	prompt.WriteString("4. You MUST guard all database connection logic against null or empty/placeholder dbPath values. Since this method takes a 'dbPath = String' parameter, you MUST check if it is valid. To ensure short-circuiting and avoid NullPointerExceptions, use nested checks: `if dbPath \\== null then if dbPath \\== \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory. The validation checks above should be run first.\n")
 	prompt.WriteString("5. Mismatched block and catch syntax: (a) Never write 'finally do' on the same line. If you need a try-catch block inside a finally clause, place 'finally' on its own line and start the 'do' block on the next line. (b) Every catch clause MUST follow NetRexx syntax: 'catch ex = ExceptionType' (e.g. 'catch ex = SQLException' or 'catch ex = Exception'). Never write 'catch Exception ex' or 'catch ex' without a type.\n")
+	prompt.WriteString("6. Numeric Types and Literals: Literals with decimal points (e.g. 0.0) are treated as float by default. To declare a primitive double, use `varName = double 0` or cast it like `varName = double 0.0`. Prefer primitive `double` and `int` over their boxed object wrapper classes `java.lang.Double` or `java.lang.Integer`. To check if a double is infinite or NaN, use `Double.isInfinite(val)` or `Double.isNaN(val)` instead of calling methods on a wrapper object.\n")
+	prompt.WriteString("7. Backslash in String Literals: To write a literal backslash inside a NetRexx string literal, you MUST double it (e.g. write 'C:\\\\\\\\Windows' or '\\\\\\\\' in code to represent a backslash). A single backslash followed by a letter (like '\\\\W') is an invalid escape sequence and will cause translation to fail.\n")
+	prompt.WriteString("8. Object Instantiation: Do NOT use the `new` keyword to instantiate classes. In NetRexx, you instantiate a class by calling its constructor directly (e.g. use `record = MetricRecord()` or `record = MetricRecord(\"arg1\", \"arg2\")` instead of `record = new MetricRecord()`).\n")
+	prompt.WriteString("9. Accessing DTO fields: DTO helper classes (like `MetricRecord` or `TransactionRecord`) expose public properties directly. You MUST access them directly by name without Java-style getter/setter methods (e.g. use `record.txId` or `record.amount` instead of `record.getId()` or `record.getAmount()`).\n")
+	prompt.WriteString("10. Null Check Reference Comparison: ALWAYS use the strict identity operators `== null` and `\\== null` (double equals) when checking for null references. Do NOT use `=` or `\\=` for null checking against Java null, as value comparisons against null can throw NullPointerExceptions.\n")
+	prompt.WriteString("11. Non-Short-Circuiting Operators: NetRexx logical operators `|` and `&` do NOT short-circuit (they always evaluate both sides). Therefore, you MUST NOT combine null-checks and member/method calls in a single expression (e.g. do NOT write `if record == null | record.timestamp == null`). Instead, check if the object itself is null first, and only check its fields or call its methods in separate, subsequent statements.\n")
+	prompt.WriteString("12. String methods vs Rexx methods: Properties or parameters declared as `String` are Java `java.lang.String` objects. You MUST use Java String methods (e.g., `val.trim().length() == 0` for empty/whitespace checks, `val.indexOf(substring) >= 0` to check for containment, `val.startsWith(prefix)` to check prefix) on them. Do NOT use Rexx-specific methods like `.pos()`, `.datatype()`, `.strip()`, `.left()`, `.stripspace()`, or `.upper()` on `String` types. If you want to use Rexx methods, you must first cast/convert them to Rexx (e.g., `Rexx(val)`).\n")
+	prompt.WriteString("13. Loops: In NetRexx, loops MUST use the `loop` keyword, not `do` (e.g. use `loop pattern over patterns` instead of `do for pattern over patterns` or `do pattern over patterns`). Closing a loop block must be done with `end`.\n")
+	prompt.WriteString("14. Unique exception names in catch blocks: In NetRexx, exception variables in catch blocks have method scope. If a method contains multiple catch blocks, you MUST use different variable names (e.g., `catch exNum = NumberFormatException`, `catch exSql = SQLException`) to avoid compiler errors about type mismatch or duplicate declarations.\n")
 	prompt.WriteString("Output ONLY the complete NetRexx method block starting with '" + sig + "'. Do not include the enclosing class, package, or imports. Do not wrap in markdown code blocks.\n")
 
 	return prompt.String(), nil
@@ -400,12 +417,22 @@ func main() {
 	}
 
 	skeletonFile := filepath.Join(projectDir, "generated", mainClassName+".nrx")
-	err = os.WriteFile(skeletonFile, []byte(skeleton), 0644)
-	if err != nil {
-		fmt.Printf("Error writing skeleton file: %v\n", err)
-		os.Exit(1)
+	skipWrite := false
+	if existingContent, readErr := os.ReadFile(skeletonFile); readErr == nil {
+		if !strings.Contains(string(existingContent), "SKELETON_") {
+			skipWrite = true
+		}
 	}
-	fmt.Printf("[INFO] Structural skeleton written to: %s\n", skeletonFile)
+	if skipWrite {
+		fmt.Printf("[INFO] %s already synthesized. Skipping skeleton overwrite.\n", skeletonFile)
+	} else {
+		err = os.WriteFile(skeletonFile, []byte(skeleton), 0644)
+		if err != nil {
+			fmt.Printf("Error writing skeleton file: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("[INFO] Structural skeleton written to: %s\n", skeletonFile)
+	}
 
 	// Setup context directory
 	contextDir := filepath.Join(projectDir, ".context")
@@ -496,10 +523,19 @@ func main() {
 	}
 }
 
+type CounterItem struct {
+	Value    string `json:"value"`
+	Expected string `json:"expected"`
+}
+
+type BoundaryPayload struct {
+	Valid   []string      `json:"valid"`
+	Counter []CounterItem `json:"counter"`
+}
+
 type BoundaryItem struct {
-	Domain   string   `json:"domain"`
-	Values   []string `json:"values"`
-	Expected string   `json:"expected"`
+	Domain  string          `json:"domain"`
+	Payload BoundaryPayload `json:"payload"`
 }
 
 func ExtractFuzzerBoundaries(dbPath string, outputPath string) error {
@@ -509,7 +545,7 @@ func ExtractFuzzerBoundaries(dbPath string, outputPath string) error {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT exemplar_id, fact_context_predicate, input_state_payload, expected_output_state FROM unified_exemplars WHERE domain_scope = 'Fuzzer.Boundary'")
+	rows, err := db.Query("SELECT exemplar_id, fact_context_predicate, input_state_payload FROM unified_exemplars WHERE domain_scope = 'Fuzzer.Boundary'")
 	if err != nil {
 		return err
 	}
@@ -518,21 +554,19 @@ func ExtractFuzzerBoundaries(dbPath string, outputPath string) error {
 	boundaries := make(map[string][]BoundaryItem)
 
 	for rows.Next() {
-		var exemplarId, targetPrimitive, inputStatePayload, expectedOutputState string
-		if err := rows.Scan(&exemplarId, &targetPrimitive, &inputStatePayload, &expectedOutputState); err != nil {
+		var exemplarId, targetPrimitive, inputStatePayload string
+		if err := rows.Scan(&exemplarId, &targetPrimitive, &inputStatePayload); err != nil {
 			return err
 		}
 
-		var values []string
-		if err := json.Unmarshal([]byte(inputStatePayload), &values); err != nil {
-			// fallback if it's not a valid json array (should be though)
-			values = []string{inputStatePayload}
+		var payload BoundaryPayload
+		if err := json.Unmarshal([]byte(inputStatePayload), &payload); err != nil {
+			return fmt.Errorf("failed to unmarshal fuzzer payload for %s: %w", exemplarId, err)
 		}
 
 		item := BoundaryItem{
-			Domain:   exemplarId,
-			Values:   values,
-			Expected: expectedOutputState,
+			Domain:  exemplarId,
+			Payload: payload,
 		}
 
 		boundaries[targetPrimitive] = append(boundaries[targetPrimitive], item)

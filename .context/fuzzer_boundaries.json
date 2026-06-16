@@ -2,56 +2,140 @@
   "String": [
     {
       "domain": "SQL_INJECTION",
-      "values": [
-        "' OR '1'='1",
-        "'; DROP TABLE system_metrics; --",
-        "' UNION SELECT null, null, null --"
-      ],
-      "expected": "SQLException"
+      "payload": {
+        "valid": [
+          "normal_string_test",
+          "cpu_usage",
+          "standard_channel"
+        ],
+        "counter": [
+          {
+            "value": "' OR '1'='1",
+            "expected": "java.sql.SQLException"
+          },
+          {
+            "value": "'; DROP TABLE system_metrics; --",
+            "expected": "java.sql.SQLException"
+          },
+          {
+            "value": "' UNION SELECT null, null, null --",
+            "expected": "java.sql.SQLException"
+          }
+        ]
+      }
     },
     {
       "domain": "PATH_TRAVERSAL",
-      "values": [
-        "/etc/passwd",
-        "../../../etc/passwd",
-        "C:\\Windows\\win.ini",
-        "null"
-      ],
-      "expected": "IOException"
+      "payload": {
+        "valid": [
+          "generated/metrics_test.db",
+          "metrics.db",
+          "routing.db"
+        ],
+        "counter": [
+          {
+            "value": "/etc/passwd",
+            "expected": "java.io.IOException"
+          },
+          {
+            "value": "../../../etc/passwd",
+            "expected": "java.io.IOException"
+          },
+          {
+            "value": "C:\\Windows\\win.ini",
+            "expected": "java.io.IOException"
+          }
+        ]
+      }
     },
     {
       "domain": "EMPTY_NULL",
-      "values": [
-        "",
-        "null",
-        "   "
-      ],
-      "expected": "IllegalArgumentException"
+      "payload": {
+        "valid": [
+          "normal_string",
+          "cpu_usage"
+        ],
+        "counter": [
+          {
+            "value": "",
+            "expected": "java.lang.IllegalArgumentException"
+          },
+          {
+            "value": "null",
+            "expected": "java.lang.IllegalArgumentException"
+          },
+          {
+            "value": "   ",
+            "expected": "java.lang.IllegalArgumentException"
+          }
+        ]
+      }
     }
   ],
   "double": [
     {
       "domain": "NUMERIC_OVERFLOW_DOUBLE",
-      "values": [
-        "1.7976931348623157e+308",
-        "-1.7976931348623157e+308",
-        "NaN",
-        "Infinity",
-        "-Infinity"
-      ],
-      "expected": "NumberFormatException"
+      "payload": {
+        "valid": [
+          "0",
+          "1.5",
+          "-45.2",
+          "100.0"
+        ],
+        "counter": [
+          {
+            "value": "1.7976931348623157e+308",
+            "expected": "java.lang.NumberFormatException"
+          },
+          {
+            "value": "-1.7976931348623157e+308",
+            "expected": "java.lang.NumberFormatException"
+          },
+          {
+            "value": "NaN",
+            "expected": "java.lang.NumberFormatException"
+          },
+          {
+            "value": "Infinity",
+            "expected": "java.lang.NumberFormatException"
+          },
+          {
+            "value": "-Infinity",
+            "expected": "java.lang.NumberFormatException"
+          }
+        ]
+      }
     }
   ],
   "int": [
     {
       "domain": "NUMERIC_OVERFLOW_INT",
-      "values": [
-        "2147483647",
-        "-2147483648",
-        "2147483648",
-        "-2147483649"
-      ],
-      "expected": "NumberFormatException"
+      "payload": {
+        "valid": [
+          "0",
+          "100",
+          "-50",
+          "999"
+        ],
+        "counter": [
+          {
+            "value": "2147483647",
+            "expected": "java.lang.NumberFormatException"
+          },
+          {
+            "value": "-2147483648",
+            "expected": "java.lang.NumberFormatException"
+          },
+          {
+            "value": "2147483648",
+            "expected": "java.lang.NumberFormatException"
+          },
+          {
+            "value": "-2147483649",
+            "expected": "java.lang.NumberFormatException"
+          }
+        ]
+      }
     }
   ]
 }

@@ -30,36 +30,41 @@ str getBoundaryList(str paramType, str methodName, int paramIndex, str recordTyp
     return "[\"null\"]";
 }
 
-alias BoundariesMap = map[str, list[map[str, value]]];
+data BoundaryPayload = boundaryPayload(list[str] valid, list[map[str, str]] counter);
+data BoundaryItem = boundaryItem(str domain, BoundaryPayload payload);
+alias BoundariesMap = map[str, list[BoundaryItem]];
+alias FuzzTuple = tuple[str val, int isCounter, str expected];
 
 str escapeRexxStr(str s) {
     return replaceAll(replaceAll(s, "\\", "\\\\"), "\'", "\'\'");
 }
 
-list[str] getStringBounds(BoundariesMap bm) {
-    list[str] vals = ["normal_string_test"];
+list[FuzzTuple] getStringBounds(BoundariesMap bm) {
+    list[FuzzTuple] vals = [<"normal_string_test", 0, "null">];
     if ("String" in bm) {
         for (item <- bm["String"]) {
-            if (list[value] vList := item["values"]) {
-                for (v <- vList) {
-                    vals += "<v>";
-                }
+            for (v <- item.payload.valid) {
+                vals += <v, 0, "null">;
+            }
+            for (c <- item.payload.counter) {
+                vals += <c["value"], 1, "\'" + c["expected"] + "\'">;
             }
         }
     }
     return dup(vals);
 }
 
-list[str] getDoubleBounds(BoundariesMap bm) {
-    list[str] vals = ["0", "1", "-1"];
+list[FuzzTuple] getDoubleBounds(BoundariesMap bm) {
+    list[FuzzTuple] vals = [<"0", 0, "null">, <"1", 0, "null">, <"-1", 0, "null">];
     if ("double" in bm) {
         for (item <- bm["double"]) {
-            if (list[value] vList := item["values"]) {
-                for (v <- vList) {
-                    str s = "<v>";
-                    if (s != "NaN" && s != "Infinity" && s != "-Infinity") {
-                        vals += s;
-                    }
+            for (v <- item.payload.valid) {
+                vals += <v, 0, "null">;
+            }
+            for (c <- item.payload.counter) {
+                str s = c["value"];
+                if (s != "NaN" && s != "Infinity" && s != "-Infinity") {
+                    vals += <s, 1, "\'" + c["expected"] + "\'">;
                 }
             }
         }
@@ -67,18 +72,27 @@ list[str] getDoubleBounds(BoundariesMap bm) {
     return dup(vals);
 }
 
-list[str] getIntBounds(BoundariesMap bm) {
-    list[str] vals = ["0", "1", "-1"];
+list[FuzzTuple] getIntBounds(BoundariesMap bm) {
+    list[FuzzTuple] vals = [<"0", 0, "null">, <"1", 0, "null">, <"-1", 0, "null">];
     if ("int" in bm) {
         for (item <- bm["int"]) {
-            if (list[value] vList := item["values"]) {
-                for (v <- vList) {
-                    vals += "<v>";
-                }
+            for (v <- item.payload.valid) {
+                vals += <v, 0, "null">;
+            }
+            for (c <- item.payload.counter) {
+                vals += <c["value"], 1, "\'" + c["expected"] + "\'">;
             }
         }
     }
     return dup(vals);
+}
+
+str formatFuzzInput(FuzzTuple t) {
+    str vRepr = "null";
+    if (t.val != "null" && t.val != "NULL") {
+        vRepr = "\'" + escapeRexxStr(t.val) + "\'";
+    }
+    return "FuzzInput(<vRepr>, <t.isCounter>, <t.expected>)";
 }
 
 void generateTest(str className, loc declsFile, loc testFile) {
@@ -193,38 +207,43 @@ void generateTest(str className, loc declsFile, loc testFile) {
         println("[WARNING] Failed to read fuzzer boundaries JSON file: <boundariesLoc>. Using defaults.");
     }
 
-    list[str] strVals = getStringBounds(bm);
+    list[FuzzTuple] strVals = getStringBounds(bm);
     list[str] strReprs = [];
-    for (x <- strVals) {
-        if (x == "null") {
-            strReprs += "null";
-        } else {
-            strReprs += "\'<escapeRexxStr(x)>\'";
-        }
+    for (t <- strVals) {
+        strReprs += formatFuzzInput(t);
     }
     
-    list[str] doubleVals = getDoubleBounds(bm);
+    list[FuzzTuple] doubleVals = getDoubleBounds(bm);
     list[str] doubleReprs = [];
-    for (x <- doubleVals) {
-        doubleReprs += "Rexx(<x>)";
+    for (t <- doubleVals) {
+        doubleReprs += formatFuzzInput(t);
     }
 
-    list[str] intVals = getIntBounds(bm);
-    list[str] rexxReprs = ["Rexx(\'normal\')", "Rexx(\'\')"];
-    for (x <- intVals) {
-        rexxReprs += "Rexx(<x>)";
+    list[FuzzTuple] intVals = getIntBounds(bm);
+    list[str] rexxReprs = [
+        "FuzzInput(\'normal\', 0, null)",
+        "FuzzInput(\'\', 0, null)"
+    ];
+    for (t <- intVals) {
+        rexxReprs += formatFuzzInput(t);
     }
+
+    list[str] dbPathReprs = [
+        "FuzzInput(\'generated/<toLowerCase(className)>_test.db\', 0, null)",
+        "FuzzInput(\':memory:\', 0, null)",
+        "FuzzInput(null, 1, \'java.lang.IllegalArgumentException\')"
+    ];
 
     code += "    ";
     code += "    -- Boundary payloads";
     code += "    stringBounds = [<intercalate(", ", strReprs)>]";
-    code += "    dbPathBounds = [\'generated/<toLowerCase(className)>_test.db\', \':memory:\', null]";
+    code += "    dbPathBounds = [<intercalate(", ", dbPathReprs)>]";
     code += "    doubleBounds = [<intercalate(", ", doubleReprs)>]";
     code += "    rexxBounds = [<intercalate(", ", rexxReprs)>]";
     code += "    ";
     code += "    -- Build <recordType> boundary instances";
     code += "    recordBounds = java.util.ArrayList()";
-    code += "    recordBounds.add(null)";
+    code += "    recordBounds.add(RecordFuzzInput(null, 1, \'java.lang.IllegalArgumentException\'))";
     code += "    loop tsVal over stringBounds";
     code += "      loop nameVal over stringBounds";
     code += "        loop valVal over doubleBounds";
@@ -234,14 +253,28 @@ void generateTest(str className, loc declsFile, loc testFile) {
     for (f <- recordFields) {
         if (f.typeName == "String") {
             str loopVar = (strVarIdx % 2 == 1) ? "tsVal" : "nameVal";
-            code += "          if <loopVar> \\== null then if <loopVar> \\== \"null\" then rec.<f.name> = String <loopVar>";
+            code += "          if <loopVar>.val \\== null then rec.<f.name> = String <loopVar>.val";
             strVarIdx += 1;
         } else if (f.typeName == "Rexx") {
-            code += "          rec.<f.name> = valVal";
+            code += "          if valVal.val \\== null then rec.<f.name> = Rexx(valVal.val)";
         }
     }
     
-    code += "          recordBounds.add(rec)";
+    code += "          recIsCounter = tsVal.isCounter | nameVal.isCounter | valVal.isCounter";
+    code += "          recExpected = String null";
+    code += "          if tsVal.isCounter \\= 0 then do";
+    code += "            recExpected = tsVal.expected";
+    code += "          end";
+    code += "          else if nameVal.isCounter \\= 0 then do";
+    code += "            recExpected = nameVal.expected";
+    code += "          end";
+    code += "          else if valVal.isCounter \\= 0 then do";
+    code += "            recExpected = valVal.expected";
+    code += "          end";
+    code += "          counterCount = tsVal.isCounter + nameVal.isCounter + valVal.isCounter";
+    code += "          if counterCount == 0 | counterCount == 1 then do";
+    code += "            recordBounds.add(RecordFuzzInput(rec, recIsCounter, recExpected))";
+    code += "          end";
     code += "        end";
     code += "      end";
     code += "    end";
@@ -262,17 +295,13 @@ void generateTest(str className, loc declsFile, loc testFile) {
             str boundaryList = getBoundaryList(paramType, m.name, i, recordType);
             
             str indentStr = left("", indent, " ");
-            code += "<indentStr>loop val<i+1> over <boundaryList>";
-            code += "<indentStr>  <varName> = <paramType> null";
-            
-            // Casting/null check logic
-            if (contains(paramType, "String")) {
-                code += "<indentStr>  if val<i+1> \\== null then if val<i+1> \\== \"null\" then <varName> = <paramType> val<i+1>";
-            } else if (recordType != "" && contains(paramType, recordType)) {
-                code += "<indentStr>  <varName> = <paramType> val<i+1>";
+            code += "<indentStr>loop <m.name>_val<i+1> over <boundaryList>";
+            if (boundaryList == "recordBounds") {
+                code += "<indentStr>  <m.name>_val<i+1>_input = RecordFuzzInput <m.name>_val<i+1>";
             } else {
-                code += "<indentStr>  <varName> = val<i+1>";
+                code += "<indentStr>  <m.name>_val<i+1>_input = FuzzInput <m.name>_val<i+1>";
             }
+            code += "<indentStr>  <varName> = <paramType> null";
             
             loopVars += varName;
             indent += 2;
@@ -280,14 +309,47 @@ void generateTest(str className, loc declsFile, loc testFile) {
         
         // Inside the innermost loop: make the call wrapped in do-catch-finally
         str innerIndent = left("", indent, " ");
+        
+        code += "<innerIndent><m.name>_isCounter = int 0";
+        code += "<innerIndent><m.name>_expectedExs = java.util.ArrayList()";
+        for (i <- [0..size(m.params)]) {
+            code += "<innerIndent>if <m.name>_val<i+1>_input.isCounter \\= 0 then do";
+            code += "<innerIndent>  <m.name>_isCounter = 1";
+            code += "<innerIndent>  <m.name>_expectedExs.add(<m.name>_val<i+1>_input.expected)";
+            code += "<innerIndent>end";
+        }
+        
+        code += "<innerIndent><m.name>_ex = Throwable null";
         code += "<innerIndent>do";
+        code += "<innerIndent>  if 1 == 0 then <className>Test.dummySignal()";
+        
+        // Perform parameter assignments inside the do block
+        for (i <- [0..size(m.params)]) {
+            str paramType = m.params[i];
+            str varName = "<m.name>_p<i+1>";
+            if (contains(paramType, "String")) {
+                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = <m.name>_val<i+1>_input.val";
+            } else if (recordType != "" && contains(paramType, recordType)) {
+                code += "<innerIndent>  <varName> = <m.name>_val<i+1>_input.rec";
+            } else if (contains(paramType, "Rexx")) {
+                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Rexx(<m.name>_val<i+1>_input.val)";
+            } else if (contains(paramType, "int")) {
+                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Integer.parseInt(<m.name>_val<i+1>_input.val)";
+            } else if (contains(paramType, "double")) {
+                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Double.parseDouble(<m.name>_val<i+1>_input.val)";
+            } else if (contains(paramType, "float")) {
+                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Float.parseFloat(<m.name>_val<i+1>_input.val)";
+            } else if (contains(paramType, "long")) {
+                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Long.parseLong(<m.name>_val<i+1>_input.val)";
+            }
+        }
         
         str callArgs = intercalate(", ", loopVars);
         code += "<innerIndent>  <className>.<m.name>(<callArgs>)";
-        code += "<innerIndent>catch RuntimeException";
-        code += "<innerIndent>  -- Silent capture of expected exceptions";
-        code += "<innerIndent>  nop";
+        code += "<innerIndent>catch <m.name>_caught = Throwable";
+        code += "<innerIndent>  <m.name>_ex = <m.name>_caught";
         code += "<innerIndent>end";
+        code += "<innerIndent><className>Test.assertResult(\'<m.name>\', <m.name>_isCounter, <m.name>_expectedExs, <m.name>_ex)";
         
         // Close loops
         for (i <- [0..size(m.params)]) {
@@ -300,6 +362,81 @@ void generateTest(str className, loc declsFile, loc testFile) {
     }
     
     code += "    say \"=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ===\"";
+    code += "";
+    
+    // Add the assertResult method
+    code += "  method assertResult(methodName = String, isCounter = int, expectedExs = java.util.ArrayList, ex = Throwable) public static";
+    code += "    if isCounter \\= 0 then do";
+    code += "      if ex == null then do";
+    code += "        say \"Assertion failure in \" || methodName || \": counter-example bypassed validation (no exception thrown)\"";
+    code += "        java.lang.System.exit(1)";
+    code += "      end";
+    code += "      thrownEx = ex.getClass().getName()";
+    code += "      if thrownEx == \"java.lang.NullPointerException\" then do";
+    code += "        npeExpected = int 0";
+    code += "        loop i = 0 to expectedExs.size() - 1";
+    code += "          if (String expectedExs.get(i)) == \"java.lang.NullPointerException\" then npeExpected = 1";
+    code += "        end";
+    code += "        if npeExpected == 0 then do";
+    code += "          say \"Assertion failure in \" || methodName || \": ungraceful crash (NullPointerException)\"";
+    code += "          ex.printStackTrace()";
+    code += "          java.lang.System.exit(1)";
+    code += "        end";
+    code += "      end";
+    code += "      matched = int 0";
+    code += "      loop i = 0 to expectedExs.size() - 1";
+    code += "        expEx = String expectedExs.get(i)";
+    code += "        do";
+    code += "          expectedClass = java.lang.Class.forName(expEx)";
+    code += "          if expectedClass.isInstance(ex) then matched = 1";
+    code += "        catch ClassNotFoundException";
+    code += "          nop";
+    code += "        end";
+    code += "      end";
+    code += "      if matched == 0 then do";
+    code += "        say \"Assertion failure in \" || methodName || \": caught \" || thrownEx || \" (\" || ex.getMessage() || \") but none of the expected exceptions matched.\"";
+    code += "        say \"Expected exceptions for \" || methodName || \":\"";
+    code += "        loop idx = 0 to expectedExs.size() - 1";
+    code += "          exp = String expectedExs.get(idx)";
+    code += "          if exp == null then exp = \"null\"";
+    code += "          say \"  - \" || exp";
+    code += "        end";
+    code += "        java.lang.System.exit(1)";
+    code += "      end";
+    code += "    end";
+    code += "    else do";
+    code += "      if ex \\= null then do";
+    code += "        say \"Assertion failure in \" || methodName || \": happy path regression (unexpected exception \" || ex.getClass().getName() || \": \" || ex.getMessage() || \")\"";
+    code += "        ex.printStackTrace()";
+    code += "        java.lang.System.exit(1)";
+    code += "      end";
+    code += "    end";
+    code += "";
+    code += "  method dummySignal() private static signals java.lang.Throwable";
+    code += "    nop";
+    code += "";
+    
+    // Add the helper classes
+    code += "class FuzzInput";
+    code += "  properties public";
+    code += "    val = String";
+    code += "    isCounter = int";
+    code += "    expected = String";
+    code += "  method FuzzInput(aVal = String, aIsCounter = int, aExpected = String)";
+    code += "    this.val = aVal";
+    code += "    this.isCounter = aIsCounter";
+    code += "    this.expected = aExpected";
+    code += "";
+    code += "class RecordFuzzInput";
+    code += "  properties public";
+    code += "    rec = <recordType>";
+    code += "    isCounter = int";
+    code += "    expected = String";
+    code += "  method RecordFuzzInput(aRec = <recordType>, aIsCounter = int, aExpected = String)";
+    code += "    this.rec = aRec";
+    code += "    this.isCounter = aIsCounter";
+    code += "    this.expected = aExpected";
+    code += "";
     
     writeFile(testFile, intercalate("\n", code));
     println("Successfully generated test script at: <testFile>");
