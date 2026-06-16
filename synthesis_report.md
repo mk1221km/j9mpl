@@ -59,7 +59,18 @@ To resolve IDE type resolution errors (where VS Code flagged `MetricRecord` and 
 4. **Pipeline Compile Precedence**: Modified [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pipeline.sh) to translate and compile `*Record.nrx` files first, placing their `.class` files onto the classpath before main classes are compiled.
 5. **Zero-Error Verification Sweep**: Executed the job supervisor pipeline sequentially, verifying that both jobs compile cleanly and execute all sandboxed fuzzer checks successfully.
 
-## 5. Next Session Goals
-* **Harness Exception Assertion Gate:** Integrate the `expected_output_state` field from `unified_exemplars` directly into the sandboxed fuzzer catch blocks to execute assert validations on target exceptions.
-* **Unified Pipeline Indexing:** Ensure re-indexing hooks dynamically reflect schema validation rules across the unified ledger.
+## 5. Inline Exception Assertion Gating & Bootstrapped Re-indexing (Phase VI)
+
+To transform the property-based fuzzer into an exact type-matching assertion engine and resolve bootstrapping dependencies in the isolated workspaces:
+1. **Inline Type-Matching Assertions**: Redesigned [TestGenerator.rsc](file:///home/me/code/j9mpl/src/TestGenerator.rsc) to emit inline JVM type assertions using `Class.forName` and `expectedClass.isInstance` within the fuzzer loop, ensuring defensive firewalls match expected exception types exactly (supporting standard JVM inheritance).
+2. **Fail-Fast Enforcement**: Replaced out-of-band heap status checks with an immediate in-loop validation check (`if expectedEx \== null then do`) to instantly abort execution the moment a payload bypasses validations.
+3. **Parameter Counter-Example Isolation**: Hardened the generated loops in [TestGenerator.rsc](file:///home/me/code/j9mpl/src/TestGenerator.rsc) to track `counterCount` and bypass combinations containing multiple simultaneous counter-examples, guaranteeing 100% deterministic type-matching and preventing competing exceptions.
+4. **Bootstrapped Re-indexing**: Configured [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pipeline.sh) to execute `ContextExtractor` inside the isolated workspace immediately after compiling the production files. This updates the local `project_context.db` with the new DTO properties before test generation.
+5. **Workspace Dependencies & JVM Classpaths**: Modified [job_queue.tcl](file:///home/me/code/j9mpl/bin/job_queue.tcl) to copy `pom.xml` to isolated directories so that the Rascal Maven resolver succeeds in loading the Java AST libraries. Adjusted JVM wildcards in [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pipeline.sh) to point directly to root directories (`../../target/dependency/*`), bypassing symbolic link resolution limitations.
+6. **Zero-Error Validation Sweep**: Ran the job queue supervisor sequentially. Both jobs successfully converged, compiled, generated test harnesses, and passed fuzzer checks cleanly.
+
+## 6. Next Session Goals
+* **Continuous Fuzz Tuning**: Scale fuzzer boundary vectors to support deeper nested structural validations.
+* **Unified Pipeline Indexing**: Ensure re-indexing hooks dynamically reflect schema validation rules across the unified ledger.
+
 

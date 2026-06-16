@@ -39,6 +39,10 @@ To solve VS Code's "unknown variable" warnings, we extracted secondary DTO class
 
 We then modified [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pipeline.sh) to compile these DTOs first, putting their compiled `.class` files on the classpath so the main classes compile without warning.
 
+### F. Inline Type-Matching & Counter-Example Isolation
+We implemented strict inline exception type-matching assertions inside the generated test suites, enforcing that caught exceptions correspond precisely to the expected validation faults. We also isolated parameter counter-examples so that at most one parameter is fuzzed with an invalid value in any test iteration, ensuring 100% deterministic test execution.
+
+
 ---
 
 ## 3. Systemic Implications
