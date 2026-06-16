@@ -51,26 +51,48 @@ class MetricsLoggerTest public
       loop logMetric_val2 over recordBounds
         logMetric_val2_input = RecordFuzzInput logMetric_val2
         logMetric_p2 = com.factory.metrics.MetricRecord null
-        logMetric_isCounter = int 0
-        logMetric_expectedExs = java.util.ArrayList()
-        if logMetric_val1_input.isCounter \= 0 then do
-          logMetric_isCounter = 1
-          logMetric_expectedExs.add(logMetric_val1_input.expected)
+        logMetric_counterCount = int 0
+        if logMetric_val1_input.isCounter \= 0 then logMetric_counterCount = logMetric_counterCount + 1
+        if logMetric_val2_input.isCounter \= 0 then logMetric_counterCount = logMetric_counterCount + 1
+        if logMetric_counterCount <= 1 then do
+          logMetric_expectedEx = String null
+          if logMetric_val1_input.isCounter \= 0 then do
+            logMetric_expectedEx = logMetric_val1_input.expected
+          end
+          if logMetric_val2_input.isCounter \= 0 then do
+            logMetric_expectedEx = logMetric_val2_input.expected
+          end
+          do
+            if 1 == 0 then MetricsLoggerTest.dummySignal()
+            if logMetric_val1_input.val \== null then logMetric_p1 = logMetric_val1_input.val
+            logMetric_p2 = logMetric_val2_input.rec
+            MetricsLogger.logMetric(logMetric_p1, logMetric_p2)
+            if logMetric_expectedEx \== null then do
+              say "Assertion Failure in logMetric: counter-example bypassed validation (no exception thrown). Expected: " || logMetric_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if logMetric_expectedEx == null then do
+              say "Assertion Failure in logMetric: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(logMetric_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== logMetric_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in logMetric: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || logMetric_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
         end
-        if logMetric_val2_input.isCounter \= 0 then do
-          logMetric_isCounter = 1
-          logMetric_expectedExs.add(logMetric_val2_input.expected)
-        end
-        logMetric_ex = Throwable null
-        do
-          if 1 == 0 then MetricsLoggerTest.dummySignal()
-          if logMetric_val1_input.val \== null then logMetric_p1 = logMetric_val1_input.val
-          logMetric_p2 = logMetric_val2_input.rec
-          MetricsLogger.logMetric(logMetric_p1, logMetric_p2)
-        catch logMetric_caught = Throwable
-          logMetric_ex = logMetric_caught
-        end
-        MetricsLoggerTest.assertResult('logMetric', logMetric_isCounter, logMetric_expectedExs, logMetric_ex)
       end
     end
     say "  Method logMetric boundary exhaustion completed."
@@ -82,26 +104,48 @@ class MetricsLoggerTest public
       loop getAverageMetric_val2 over stringBounds
         getAverageMetric_val2_input = FuzzInput getAverageMetric_val2
         getAverageMetric_p2 = java.lang.String null
-        getAverageMetric_isCounter = int 0
-        getAverageMetric_expectedExs = java.util.ArrayList()
-        if getAverageMetric_val1_input.isCounter \= 0 then do
-          getAverageMetric_isCounter = 1
-          getAverageMetric_expectedExs.add(getAverageMetric_val1_input.expected)
+        getAverageMetric_counterCount = int 0
+        if getAverageMetric_val1_input.isCounter \= 0 then getAverageMetric_counterCount = getAverageMetric_counterCount + 1
+        if getAverageMetric_val2_input.isCounter \= 0 then getAverageMetric_counterCount = getAverageMetric_counterCount + 1
+        if getAverageMetric_counterCount <= 1 then do
+          getAverageMetric_expectedEx = String null
+          if getAverageMetric_val1_input.isCounter \= 0 then do
+            getAverageMetric_expectedEx = getAverageMetric_val1_input.expected
+          end
+          if getAverageMetric_val2_input.isCounter \= 0 then do
+            getAverageMetric_expectedEx = getAverageMetric_val2_input.expected
+          end
+          do
+            if 1 == 0 then MetricsLoggerTest.dummySignal()
+            if getAverageMetric_val1_input.val \== null then getAverageMetric_p1 = getAverageMetric_val1_input.val
+            if getAverageMetric_val2_input.val \== null then getAverageMetric_p2 = getAverageMetric_val2_input.val
+            MetricsLogger.getAverageMetric(getAverageMetric_p1, getAverageMetric_p2)
+            if getAverageMetric_expectedEx \== null then do
+              say "Assertion Failure in getAverageMetric: counter-example bypassed validation (no exception thrown). Expected: " || getAverageMetric_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if getAverageMetric_expectedEx == null then do
+              say "Assertion Failure in getAverageMetric: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(getAverageMetric_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== getAverageMetric_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in getAverageMetric: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || getAverageMetric_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
         end
-        if getAverageMetric_val2_input.isCounter \= 0 then do
-          getAverageMetric_isCounter = 1
-          getAverageMetric_expectedExs.add(getAverageMetric_val2_input.expected)
-        end
-        getAverageMetric_ex = Throwable null
-        do
-          if 1 == 0 then MetricsLoggerTest.dummySignal()
-          if getAverageMetric_val1_input.val \== null then getAverageMetric_p1 = getAverageMetric_val1_input.val
-          if getAverageMetric_val2_input.val \== null then getAverageMetric_p2 = getAverageMetric_val2_input.val
-          MetricsLogger.getAverageMetric(getAverageMetric_p1, getAverageMetric_p2)
-        catch getAverageMetric_caught = Throwable
-          getAverageMetric_ex = getAverageMetric_caught
-        end
-        MetricsLoggerTest.assertResult('getAverageMetric', getAverageMetric_isCounter, getAverageMetric_expectedExs, getAverageMetric_ex)
       end
     end
     say "  Method getAverageMetric boundary exhaustion completed."
@@ -110,72 +154,47 @@ class MetricsLoggerTest public
     loop initDatabase_val1 over dbPathBounds
       initDatabase_val1_input = FuzzInput initDatabase_val1
       initDatabase_p1 = java.lang.String null
-      initDatabase_isCounter = int 0
-      initDatabase_expectedExs = java.util.ArrayList()
-      if initDatabase_val1_input.isCounter \= 0 then do
-        initDatabase_isCounter = 1
-        initDatabase_expectedExs.add(initDatabase_val1_input.expected)
+      initDatabase_counterCount = int 0
+      if initDatabase_val1_input.isCounter \= 0 then initDatabase_counterCount = initDatabase_counterCount + 1
+      if initDatabase_counterCount <= 1 then do
+        initDatabase_expectedEx = String null
+        if initDatabase_val1_input.isCounter \= 0 then do
+          initDatabase_expectedEx = initDatabase_val1_input.expected
+        end
+        do
+          if 1 == 0 then MetricsLoggerTest.dummySignal()
+          if initDatabase_val1_input.val \== null then initDatabase_p1 = initDatabase_val1_input.val
+          MetricsLogger.initDatabase(initDatabase_p1)
+          if initDatabase_expectedEx \== null then do
+            say "Assertion Failure in initDatabase: counter-example bypassed validation (no exception thrown). Expected: " || initDatabase_expectedEx
+            java.lang.System.exit(1)
+          end
+        catch caughtEx = Throwable
+          thrownClass = caughtEx.getClass().getName()
+          if initDatabase_expectedEx == null then do
+            say "Assertion Failure in initDatabase: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+            caughtEx.printStackTrace()
+            java.lang.System.exit(1)
+          end
+          else do
+            matched = int 0
+            do
+              expectedClass = java.lang.Class.forName(initDatabase_expectedEx)
+              if expectedClass.isInstance(caughtEx) then matched = 1
+            catch ClassNotFoundException
+              if thrownClass \== initDatabase_expectedEx then matched = 1
+            end
+            if matched == 0 then do
+              say "Assertion Failure in initDatabase: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || initDatabase_expectedEx
+              java.lang.System.exit(1)
+            end
+          end
+        end
       end
-      initDatabase_ex = Throwable null
-      do
-        if 1 == 0 then MetricsLoggerTest.dummySignal()
-        if initDatabase_val1_input.val \== null then initDatabase_p1 = initDatabase_val1_input.val
-        MetricsLogger.initDatabase(initDatabase_p1)
-      catch initDatabase_caught = Throwable
-        initDatabase_ex = initDatabase_caught
-      end
-      MetricsLoggerTest.assertResult('initDatabase', initDatabase_isCounter, initDatabase_expectedExs, initDatabase_ex)
     end
     say "  Method initDatabase boundary exhaustion completed."
 
     say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
-
-  method assertResult(methodName = String, isCounter = int, expectedExs = java.util.ArrayList, ex = Throwable) public static
-    if isCounter \= 0 then do
-      if ex == null then do
-        say "Assertion failure in " || methodName || ": counter-example bypassed validation (no exception thrown)"
-        java.lang.System.exit(1)
-      end
-      thrownEx = ex.getClass().getName()
-      if thrownEx == "java.lang.NullPointerException" then do
-        npeExpected = int 0
-        loop i = 0 to expectedExs.size() - 1
-          if (String expectedExs.get(i)) == "java.lang.NullPointerException" then npeExpected = 1
-        end
-        if npeExpected == 0 then do
-          say "Assertion failure in " || methodName || ": ungraceful crash (NullPointerException)"
-          ex.printStackTrace()
-          java.lang.System.exit(1)
-        end
-      end
-      matched = int 0
-      loop i = 0 to expectedExs.size() - 1
-        expEx = String expectedExs.get(i)
-        do
-          expectedClass = java.lang.Class.forName(expEx)
-          if expectedClass.isInstance(ex) then matched = 1
-        catch ClassNotFoundException
-          nop
-        end
-      end
-      if matched == 0 then do
-        say "Assertion failure in " || methodName || ": caught " || thrownEx || " (" || ex.getMessage() || ") but none of the expected exceptions matched."
-        say "Expected exceptions for " || methodName || ":"
-        loop idx = 0 to expectedExs.size() - 1
-          exp = String expectedExs.get(idx)
-          if exp == null then exp = "null"
-          say "  - " || exp
-        end
-        java.lang.System.exit(1)
-      end
-    end
-    else do
-      if ex \= null then do
-        say "Assertion failure in " || methodName || ": happy path regression (unexpected exception " || ex.getClass().getName() || ": " || ex.getMessage() || ")"
-        ex.printStackTrace()
-        java.lang.System.exit(1)
-      end
-    end
 
   method dummySignal() private static signals java.lang.Throwable
     nop

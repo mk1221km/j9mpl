@@ -312,46 +312,72 @@ void generateTest(str className, loc declsFile, loc testFile) {
         // Inside the innermost loop: make the call wrapped in do-catch-finally
         str innerIndent = left("", indent, " ");
         
-        code += "<innerIndent><m.name>_isCounter = int 0";
-        code += "<innerIndent><m.name>_expectedExs = java.util.ArrayList()";
+        code += "<innerIndent><m.name>_counterCount = int 0";
         for (i <- [0..size(m.params)]) {
-            code += "<innerIndent>if <m.name>_val<i+1>_input.isCounter \\= 0 then do";
-            code += "<innerIndent>  <m.name>_isCounter = 1";
-            code += "<innerIndent>  <m.name>_expectedExs.add(<m.name>_val<i+1>_input.expected)";
-            code += "<innerIndent>end";
+            code += "<innerIndent>if <m.name>_val<i+1>_input.isCounter \\= 0 then <m.name>_counterCount = <m.name>_counterCount + 1";
         }
         
-        code += "<innerIndent><m.name>_ex = Throwable null";
-        code += "<innerIndent>do";
-        code += "<innerIndent>  if 1 == 0 then <className>Test.dummySignal()";
+        code += "<innerIndent>if <m.name>_counterCount \<= 1 then do";
+        
+        code += "<innerIndent>  <m.name>_expectedEx = String null";
+        for (i <- [0..size(m.params)]) {
+            code += "<innerIndent>  if <m.name>_val<i+1>_input.isCounter \\= 0 then do";
+            code += "<innerIndent>    <m.name>_expectedEx = <m.name>_val<i+1>_input.expected";
+            code += "<innerIndent>  end";
+        }
+        
+        code += "<innerIndent>  do";
+        code += "<innerIndent>    if 1 == 0 then <className>Test.dummySignal()";
         
         // Perform parameter assignments inside the do block
         for (i <- [0..size(m.params)]) {
             str paramType = m.params[i];
             str varName = "<m.name>_p<i+1>";
             if (contains(paramType, "String")) {
-                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = <m.name>_val<i+1>_input.val";
+                code += "<innerIndent>    if <m.name>_val<i+1>_input.val \\== null then <varName> = <m.name>_val<i+1>_input.val";
             } else if (recordType != "" && contains(paramType, recordType)) {
-                code += "<innerIndent>  <varName> = <m.name>_val<i+1>_input.rec";
+                code += "<innerIndent>    <varName> = <m.name>_val<i+1>_input.rec";
             } else if (contains(paramType, "Rexx")) {
-                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Rexx(<m.name>_val<i+1>_input.val)";
+                code += "<innerIndent>    if <m.name>_val<i+1>_input.val \\== null then <varName> = Rexx(<m.name>_val<i+1>_input.val)";
             } else if (contains(paramType, "int")) {
-                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Integer.parseInt(<m.name>_val<i+1>_input.val)";
+                code += "<innerIndent>    if <m.name>_val<i+1>_input.val \\== null then <varName> = Integer.parseInt(<m.name>_val<i+1>_input.val)";
             } else if (contains(paramType, "double")) {
-                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Double.parseDouble(<m.name>_val<i+1>_input.val)";
+                code += "<innerIndent>    if <m.name>_val<i+1>_input.val \\== null then <varName> = Double.parseDouble(<m.name>_val<i+1>_input.val)";
             } else if (contains(paramType, "float")) {
-                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Float.parseFloat(<m.name>_val<i+1>_input.val)";
+                code += "<innerIndent>    if <m.name>_val<i+1>_input.val \\== null then <varName> = Float.parseFloat(<m.name>_val<i+1>_input.val)";
             } else if (contains(paramType, "long")) {
-                code += "<innerIndent>  if <m.name>_val<i+1>_input.val \\== null then <varName> = Long.parseLong(<m.name>_val<i+1>_input.val)";
+                code += "<innerIndent>    if <m.name>_val<i+1>_input.val \\== null then <varName> = Long.parseLong(<m.name>_val<i+1>_input.val)";
             }
         }
         
         str callArgs = intercalate(", ", loopVars);
-        code += "<innerIndent>  <className>.<m.name>(<callArgs>)";
-        code += "<innerIndent>catch <m.name>_caught = Throwable";
-        code += "<innerIndent>  <m.name>_ex = <m.name>_caught";
+        code += "<innerIndent>    <className>.<m.name>(<callArgs>)";
+        code += "<innerIndent>    if <m.name>_expectedEx \\== null then do";
+        code += "<innerIndent>      say \"Assertion Failure in <m.name>: counter-example bypassed validation (no exception thrown). Expected: \" || <m.name>_expectedEx";
+        code += "<innerIndent>      java.lang.System.exit(1)";
+        code += "<innerIndent>    end";
+        code += "<innerIndent>  catch caughtEx = Throwable";
+        code += "<innerIndent>    thrownClass = caughtEx.getClass().getName()";
+        code += "<innerIndent>    if <m.name>_expectedEx == null then do";
+        code += "<innerIndent>      say \"Assertion Failure in <m.name>: happy path regression (unexpected exception: \" || thrownClass || \": \" || caughtEx.getMessage() || \")\"";
+        code += "<innerIndent>      caughtEx.printStackTrace()";
+        code += "<innerIndent>      java.lang.System.exit(1)";
+        code += "<innerIndent>    end";
+        code += "<innerIndent>    else do";
+        code += "<innerIndent>      matched = int 0";
+        code += "<innerIndent>      do";
+        code += "<innerIndent>        expectedClass = java.lang.Class.forName(<m.name>_expectedEx)";
+        code += "<innerIndent>        if expectedClass.isInstance(caughtEx) then matched = 1";
+        code += "<innerIndent>      catch ClassNotFoundException";
+        code += "<innerIndent>        if thrownClass \\== <m.name>_expectedEx then matched = 1";
+        code += "<innerIndent>      end";
+        code += "<innerIndent>      if matched == 0 then do";
+        code += "<innerIndent>        say \"Assertion Failure in <m.name>: caught \" || thrownClass || \" (\" || caughtEx.getMessage() || \") but expected \" || <m.name>_expectedEx";
+        code += "<innerIndent>        java.lang.System.exit(1)";
+        code += "<innerIndent>      end";
+        code += "<innerIndent>    end";
+        code += "<innerIndent>  end";
         code += "<innerIndent>end";
-        code += "<innerIndent><className>Test.assertResult(\'<m.name>\', <m.name>_isCounter, <m.name>_expectedExs, <m.name>_ex)";
         
         // Close loops
         for (i <- [0..size(m.params)]) {
@@ -366,54 +392,6 @@ void generateTest(str className, loc declsFile, loc testFile) {
     code += "    say \"=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ===\"";
     code += "";
     
-    // Add the assertResult method
-    code += "  method assertResult(methodName = String, isCounter = int, expectedExs = java.util.ArrayList, ex = Throwable) public static";
-    code += "    if isCounter \\= 0 then do";
-    code += "      if ex == null then do";
-    code += "        say \"Assertion failure in \" || methodName || \": counter-example bypassed validation (no exception thrown)\"";
-    code += "        java.lang.System.exit(1)";
-    code += "      end";
-    code += "      thrownEx = ex.getClass().getName()";
-    code += "      if thrownEx == \"java.lang.NullPointerException\" then do";
-    code += "        npeExpected = int 0";
-    code += "        loop i = 0 to expectedExs.size() - 1";
-    code += "          if (String expectedExs.get(i)) == \"java.lang.NullPointerException\" then npeExpected = 1";
-    code += "        end";
-    code += "        if npeExpected == 0 then do";
-    code += "          say \"Assertion failure in \" || methodName || \": ungraceful crash (NullPointerException)\"";
-    code += "          ex.printStackTrace()";
-    code += "          java.lang.System.exit(1)";
-    code += "        end";
-    code += "      end";
-    code += "      matched = int 0";
-    code += "      loop i = 0 to expectedExs.size() - 1";
-    code += "        expEx = String expectedExs.get(i)";
-    code += "        do";
-    code += "          expectedClass = java.lang.Class.forName(expEx)";
-    code += "          if expectedClass.isInstance(ex) then matched = 1";
-    code += "        catch ClassNotFoundException";
-    code += "          nop";
-    code += "        end";
-    code += "      end";
-    code += "      if matched == 0 then do";
-    code += "        say \"Assertion failure in \" || methodName || \": caught \" || thrownEx || \" (\" || ex.getMessage() || \") but none of the expected exceptions matched.\"";
-    code += "        say \"Expected exceptions for \" || methodName || \":\"";
-    code += "        loop idx = 0 to expectedExs.size() - 1";
-    code += "          exp = String expectedExs.get(idx)";
-    code += "          if exp == null then exp = \"null\"";
-    code += "          say \"  - \" || exp";
-    code += "        end";
-    code += "        java.lang.System.exit(1)";
-    code += "      end";
-    code += "    end";
-    code += "    else do";
-    code += "      if ex \\= null then do";
-    code += "        say \"Assertion failure in \" || methodName || \": happy path regression (unexpected exception \" || ex.getClass().getName() || \": \" || ex.getMessage() || \")\"";
-    code += "        ex.printStackTrace()";
-    code += "        java.lang.System.exit(1)";
-    code += "      end";
-    code += "    end";
-    code += "";
     code += "  method dummySignal() private static signals java.lang.Throwable";
     code += "    nop";
     code += "";

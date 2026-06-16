@@ -1,4 +1,4 @@
-/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 23:11:22 [v5.10] */
+/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 23:47:43 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.Connection;

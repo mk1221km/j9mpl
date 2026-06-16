@@ -1,4 +1,4 @@
-/* Generated from 'TransactionRouterTest.nrx' 16 Jun 2026 23:10:54 [v5.10] */
+/* Generated from 'TransactionRouterTest.nrx' 16 Jun 2026 23:47:15 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.routing;
 import com.factory.routing.TransactionRecord;
@@ -30,27 +30,25 @@ public class TransactionRouterTest{
   java.lang.Object routeTransaction_val2=null;
   com.factory.routing.RecordFuzzInput routeTransaction_val2_input=null;
   com.factory.routing.TransactionRecord routeTransaction_p2=null;
-  int routeTransaction_isCounter=0;
-  java.util.ArrayList routeTransaction_expectedExs=null;
-  java.lang.Throwable routeTransaction_ex=null;
-  java.lang.Throwable routeTransaction_caught=null;
+  int routeTransaction_counterCount=0;
+  java.lang.String routeTransaction_expectedEx=null;
+  java.lang.Throwable caughtEx=null;
+  java.lang.String thrownClass=null;
+  int matched=0;
+  java.lang.Class expectedClass=null;
   com.factory.routing.FuzzInput initRoutingTable_val1=null;
   com.factory.routing.FuzzInput initRoutingTable_val1_input=null;
   java.lang.String initRoutingTable_p1=null;
-  int initRoutingTable_isCounter=0;
-  java.util.ArrayList initRoutingTable_expectedExs=null;
-  java.lang.Throwable initRoutingTable_ex=null;
-  java.lang.Throwable initRoutingTable_caught=null;
+  int initRoutingTable_counterCount=0;
+  java.lang.String initRoutingTable_expectedEx=null;
   com.factory.routing.FuzzInput getTransactionCount_val1=null;
   com.factory.routing.FuzzInput getTransactionCount_val1_input=null;
   java.lang.String getTransactionCount_p1=null;
   com.factory.routing.FuzzInput getTransactionCount_val2=null;
   com.factory.routing.FuzzInput getTransactionCount_val2_input=null;
   java.lang.String getTransactionCount_p2=null;
-  int getTransactionCount_isCounter=0;
-  java.util.ArrayList getTransactionCount_expectedExs=null;
-  java.lang.Throwable getTransactionCount_ex=null;
-  java.lang.Throwable getTransactionCount_caught=null;
+  int getTransactionCount_counterCount=0;
+  java.lang.String getTransactionCount_expectedEx=null;
   netrexx.lang.RexxIO.Say("=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ===");
   stringBounds=new com.factory.routing.FuzzInput[]{new com.factory.routing.FuzzInput("normal_string_test",0,(java.lang.String)null),new com.factory.routing.FuzzInput("cpu_usage",0,(java.lang.String)null),new com.factory.routing.FuzzInput("standard_channel",0,(java.lang.String)null),new com.factory.routing.FuzzInput("\' OR \'1\'=\'1",1,"java.sql.SQLException"),new com.factory.routing.FuzzInput("\'; DROP TABLE system_metrics; --",1,"java.sql.SQLException"),new com.factory.routing.FuzzInput("\' UNION SELECT null, null, null --",1,"java.sql.SQLException"),new com.factory.routing.FuzzInput("generated/metrics_test.db",0,(java.lang.String)null),new com.factory.routing.FuzzInput("metrics.db",0,(java.lang.String)null),new com.factory.routing.FuzzInput("routing.db",0,(java.lang.String)null),new com.factory.routing.FuzzInput("/etc/passwd",1,"java.io.IOException"),new com.factory.routing.FuzzInput("../../../etc/passwd",1,"java.io.IOException"),new com.factory.routing.FuzzInput("C:\\Windows\\win.ini",1,"java.io.IOException"),new com.factory.routing.FuzzInput("normal_string",0,(java.lang.String)null),new com.factory.routing.FuzzInput("",1,"java.lang.IllegalArgumentException"),new com.factory.routing.FuzzInput((java.lang.String)null,1,"java.lang.IllegalArgumentException"),new com.factory.routing.FuzzInput("   ",1,"java.lang.IllegalArgumentException")};
   dbPathBounds=new com.factory.routing.FuzzInput[]{new com.factory.routing.FuzzInput("generated/transactionrouter_test.db",0,(java.lang.String)null),new com.factory.routing.FuzzInput(":memory:",0,(java.lang.String)null),new com.factory.routing.FuzzInput((java.lang.String)null,1,"java.lang.IllegalArgumentException")};
@@ -108,174 +106,196 @@ public class TransactionRouterTest{
    {int $15=0;java.lang.Object[] $14=new java.lang.Object[recordBounds.size()];synchronized(recordBounds){java.util.Iterator $13=recordBounds.iterator();for(;;){if($15==$14.length)break;$14[$15]=$13.next();$15++;}}routeTransaction_val2:for(;;){if(--$15<0)break;routeTransaction_val2=(java.lang.Object)$14[$15];
     routeTransaction_val2_input=(com.factory.routing.RecordFuzzInput)routeTransaction_val2;
     routeTransaction_p2=(com.factory.routing.TransactionRecord)null;
-    routeTransaction_isCounter=0;
-    routeTransaction_expectedExs=new java.util.ArrayList();
+    routeTransaction_counterCount=0;
     if (routeTransaction_val1_input.isCounter!=0) 
-     {
-      routeTransaction_isCounter=1;
-      routeTransaction_expectedExs.add((java.lang.Object)routeTransaction_val1_input.expected);
-     }
+     routeTransaction_counterCount++;
     if (routeTransaction_val2_input.isCounter!=0) 
+     routeTransaction_counterCount++;
+    if (routeTransaction_counterCount<=1) 
      {
-      routeTransaction_isCounter=1;
-      routeTransaction_expectedExs.add((java.lang.Object)routeTransaction_val2_input.expected);
+      routeTransaction_expectedEx=(java.lang.String)null;
+      if (routeTransaction_val1_input.isCounter!=0) 
+       {
+        routeTransaction_expectedEx=routeTransaction_val1_input.expected;
+       }
+      if (routeTransaction_val2_input.isCounter!=0) 
+       {
+        routeTransaction_expectedEx=routeTransaction_val2_input.expected;
+       }
+      {try{
+       if (1==0) 
+        com.factory.routing.TransactionRouterTest.dummySignal();
+       if (routeTransaction_val1_input.val!=null) 
+        routeTransaction_p1=routeTransaction_val1_input.val;
+       routeTransaction_p2=routeTransaction_val2_input.rec;
+       TransactionRouter.routeTransaction(routeTransaction_p1,routeTransaction_p2);
+       if (routeTransaction_expectedEx!=null) 
+        {
+         netrexx.lang.RexxIO.Say("Assertion Failure in routeTransaction: counter-example bypassed validation (no exception thrown). Expected: "+routeTransaction_expectedEx);
+         java.lang.System.exit(1);
+        }
+      }
+      catch (java.lang.Throwable $16){caughtEx=$16;
+       thrownClass=caughtEx.getClass().getName();
+       if (routeTransaction_expectedEx==null) 
+        {
+         netrexx.lang.RexxIO.Say("Assertion Failure in routeTransaction: happy path regression (unexpected exception: "+thrownClass+": "+caughtEx.getMessage()+")");
+         caughtEx.printStackTrace();
+         java.lang.System.exit(1);
+        }
+       else 
+        {
+         matched=0;
+         {try{
+          expectedClass=java.lang.Class.forName(routeTransaction_expectedEx);
+          if (expectedClass.isInstance((java.lang.Object)caughtEx)) 
+           matched=1;
+         }
+         catch (java.lang.ClassNotFoundException $17){
+          if (!thrownClass.equals(routeTransaction_expectedEx)) 
+           matched=1;
+         }}
+         if (matched==0) 
+          {
+           netrexx.lang.RexxIO.Say("Assertion Failure in routeTransaction: caught "+thrownClass+" ("+caughtEx.getMessage()+") but expected "+routeTransaction_expectedEx);
+           java.lang.System.exit(1);
+          }
+        }
+      }}
      }
-    routeTransaction_ex=(java.lang.Throwable)null;
-    {try{
-     if (1==0) 
-      com.factory.routing.TransactionRouterTest.dummySignal();
-     if (routeTransaction_val1_input.val!=null) 
-      routeTransaction_p1=routeTransaction_val1_input.val;
-     routeTransaction_p2=routeTransaction_val2_input.rec;
-     TransactionRouter.routeTransaction(routeTransaction_p1,routeTransaction_p2);
-    }
-    catch (java.lang.Throwable $16){routeTransaction_caught=$16;
-     routeTransaction_ex=routeTransaction_caught;
-    }}
-    com.factory.routing.TransactionRouterTest.assertResult("routeTransaction",routeTransaction_isCounter,routeTransaction_expectedExs,routeTransaction_ex);
     }
    }/*routeTransaction_val2*/
    }
   }/*routeTransaction_val1*/
   netrexx.lang.RexxIO.Say("  Method routeTransaction boundary exhaustion completed.");
   netrexx.lang.RexxIO.Say("Testing method initRoutingTable...");
-  {int $19=0;com.factory.routing.FuzzInput[] $18=new com.factory.routing.FuzzInput[dbPathBounds.length];synchronized(dbPathBounds){for(;;){if($19==$18.length)break;$18[$19]=dbPathBounds[dbPathBounds.length-1-$19];$19++;}}initRoutingTable_val1:for(;;){if(--$19<0)break;initRoutingTable_val1=(com.factory.routing.FuzzInput)$18[$19];
+  {int $20=0;com.factory.routing.FuzzInput[] $19=new com.factory.routing.FuzzInput[dbPathBounds.length];synchronized(dbPathBounds){for(;;){if($20==$19.length)break;$19[$20]=dbPathBounds[dbPathBounds.length-1-$20];$20++;}}initRoutingTable_val1:for(;;){if(--$20<0)break;initRoutingTable_val1=(com.factory.routing.FuzzInput)$19[$20];
    initRoutingTable_val1_input=initRoutingTable_val1;
    initRoutingTable_p1=(java.lang.String)null;
-   initRoutingTable_isCounter=0;
-   initRoutingTable_expectedExs=new java.util.ArrayList();
+   initRoutingTable_counterCount=0;
    if (initRoutingTable_val1_input.isCounter!=0) 
+    initRoutingTable_counterCount++;
+   if (initRoutingTable_counterCount<=1) 
     {
-     initRoutingTable_isCounter=1;
-     initRoutingTable_expectedExs.add((java.lang.Object)initRoutingTable_val1_input.expected);
+     initRoutingTable_expectedEx=(java.lang.String)null;
+     if (initRoutingTable_val1_input.isCounter!=0) 
+      {
+       initRoutingTable_expectedEx=initRoutingTable_val1_input.expected;
+      }
+     {try{
+      if (1==0) 
+       com.factory.routing.TransactionRouterTest.dummySignal();
+      if (initRoutingTable_val1_input.val!=null) 
+       initRoutingTable_p1=initRoutingTable_val1_input.val;
+      TransactionRouter.initRoutingTable(initRoutingTable_p1);
+      if (initRoutingTable_expectedEx!=null) 
+       {
+        netrexx.lang.RexxIO.Say("Assertion Failure in initRoutingTable: counter-example bypassed validation (no exception thrown). Expected: "+initRoutingTable_expectedEx);
+        java.lang.System.exit(1);
+       }
+     }
+     catch (java.lang.Throwable $21){caughtEx=$21;
+      thrownClass=caughtEx.getClass().getName();
+      if (initRoutingTable_expectedEx==null) 
+       {
+        netrexx.lang.RexxIO.Say("Assertion Failure in initRoutingTable: happy path regression (unexpected exception: "+thrownClass+": "+caughtEx.getMessage()+")");
+        caughtEx.printStackTrace();
+        java.lang.System.exit(1);
+       }
+      else 
+       {
+        matched=0;
+        {try{
+         expectedClass=java.lang.Class.forName(initRoutingTable_expectedEx);
+         if (expectedClass.isInstance((java.lang.Object)caughtEx)) 
+          matched=1;
+        }
+        catch (java.lang.ClassNotFoundException $22){
+         if (!thrownClass.equals(initRoutingTable_expectedEx)) 
+          matched=1;
+        }}
+        if (matched==0) 
+         {
+          netrexx.lang.RexxIO.Say("Assertion Failure in initRoutingTable: caught "+thrownClass+" ("+caughtEx.getMessage()+") but expected "+initRoutingTable_expectedEx);
+          java.lang.System.exit(1);
+         }
+       }
+     }}
     }
-   initRoutingTable_ex=(java.lang.Throwable)null;
-   {try{
-    if (1==0) 
-     com.factory.routing.TransactionRouterTest.dummySignal();
-    if (initRoutingTable_val1_input.val!=null) 
-     initRoutingTable_p1=initRoutingTable_val1_input.val;
-    TransactionRouter.initRoutingTable(initRoutingTable_p1);
-   }
-   catch (java.lang.Throwable $20){initRoutingTable_caught=$20;
-    initRoutingTable_ex=initRoutingTable_caught;
-   }}
-   com.factory.routing.TransactionRouterTest.assertResult("initRoutingTable",initRoutingTable_isCounter,initRoutingTable_expectedExs,initRoutingTable_ex);
    }
   }/*initRoutingTable_val1*/
   netrexx.lang.RexxIO.Say("  Method initRoutingTable boundary exhaustion completed.");
   netrexx.lang.RexxIO.Say("Testing method getTransactionCount...");
-  {int $23=0;com.factory.routing.FuzzInput[] $22=new com.factory.routing.FuzzInput[dbPathBounds.length];synchronized(dbPathBounds){for(;;){if($23==$22.length)break;$22[$23]=dbPathBounds[dbPathBounds.length-1-$23];$23++;}}getTransactionCount_val1:for(;;){if(--$23<0)break;getTransactionCount_val1=(com.factory.routing.FuzzInput)$22[$23];
+  {int $25=0;com.factory.routing.FuzzInput[] $24=new com.factory.routing.FuzzInput[dbPathBounds.length];synchronized(dbPathBounds){for(;;){if($25==$24.length)break;$24[$25]=dbPathBounds[dbPathBounds.length-1-$25];$25++;}}getTransactionCount_val1:for(;;){if(--$25<0)break;getTransactionCount_val1=(com.factory.routing.FuzzInput)$24[$25];
    getTransactionCount_val1_input=getTransactionCount_val1;
    getTransactionCount_p1=(java.lang.String)null;
-   {int $26=0;com.factory.routing.FuzzInput[] $25=new com.factory.routing.FuzzInput[stringBounds.length];synchronized(stringBounds){for(;;){if($26==$25.length)break;$25[$26]=stringBounds[stringBounds.length-1-$26];$26++;}}getTransactionCount_val2:for(;;){if(--$26<0)break;getTransactionCount_val2=(com.factory.routing.FuzzInput)$25[$26];
+   {int $28=0;com.factory.routing.FuzzInput[] $27=new com.factory.routing.FuzzInput[stringBounds.length];synchronized(stringBounds){for(;;){if($28==$27.length)break;$27[$28]=stringBounds[stringBounds.length-1-$28];$28++;}}getTransactionCount_val2:for(;;){if(--$28<0)break;getTransactionCount_val2=(com.factory.routing.FuzzInput)$27[$28];
     getTransactionCount_val2_input=getTransactionCount_val2;
     getTransactionCount_p2=(java.lang.String)null;
-    getTransactionCount_isCounter=0;
-    getTransactionCount_expectedExs=new java.util.ArrayList();
+    getTransactionCount_counterCount=0;
     if (getTransactionCount_val1_input.isCounter!=0) 
-     {
-      getTransactionCount_isCounter=1;
-      getTransactionCount_expectedExs.add((java.lang.Object)getTransactionCount_val1_input.expected);
-     }
+     getTransactionCount_counterCount++;
     if (getTransactionCount_val2_input.isCounter!=0) 
+     getTransactionCount_counterCount++;
+    if (getTransactionCount_counterCount<=1) 
      {
-      getTransactionCount_isCounter=1;
-      getTransactionCount_expectedExs.add((java.lang.Object)getTransactionCount_val2_input.expected);
+      getTransactionCount_expectedEx=(java.lang.String)null;
+      if (getTransactionCount_val1_input.isCounter!=0) 
+       {
+        getTransactionCount_expectedEx=getTransactionCount_val1_input.expected;
+       }
+      if (getTransactionCount_val2_input.isCounter!=0) 
+       {
+        getTransactionCount_expectedEx=getTransactionCount_val2_input.expected;
+       }
+      {try{
+       if (1==0) 
+        com.factory.routing.TransactionRouterTest.dummySignal();
+       if (getTransactionCount_val1_input.val!=null) 
+        getTransactionCount_p1=getTransactionCount_val1_input.val;
+       if (getTransactionCount_val2_input.val!=null) 
+        getTransactionCount_p2=getTransactionCount_val2_input.val;
+       TransactionRouter.getTransactionCount(getTransactionCount_p1,getTransactionCount_p2);
+       if (getTransactionCount_expectedEx!=null) 
+        {
+         netrexx.lang.RexxIO.Say("Assertion Failure in getTransactionCount: counter-example bypassed validation (no exception thrown). Expected: "+getTransactionCount_expectedEx);
+         java.lang.System.exit(1);
+        }
+      }
+      catch (java.lang.Throwable $29){caughtEx=$29;
+       thrownClass=caughtEx.getClass().getName();
+       if (getTransactionCount_expectedEx==null) 
+        {
+         netrexx.lang.RexxIO.Say("Assertion Failure in getTransactionCount: happy path regression (unexpected exception: "+thrownClass+": "+caughtEx.getMessage()+")");
+         caughtEx.printStackTrace();
+         java.lang.System.exit(1);
+        }
+       else 
+        {
+         matched=0;
+         {try{
+          expectedClass=java.lang.Class.forName(getTransactionCount_expectedEx);
+          if (expectedClass.isInstance((java.lang.Object)caughtEx)) 
+           matched=1;
+         }
+         catch (java.lang.ClassNotFoundException $30){
+          if (!thrownClass.equals(getTransactionCount_expectedEx)) 
+           matched=1;
+         }}
+         if (matched==0) 
+          {
+           netrexx.lang.RexxIO.Say("Assertion Failure in getTransactionCount: caught "+thrownClass+" ("+caughtEx.getMessage()+") but expected "+getTransactionCount_expectedEx);
+           java.lang.System.exit(1);
+          }
+        }
+      }}
      }
-    getTransactionCount_ex=(java.lang.Throwable)null;
-    {try{
-     if (1==0) 
-      com.factory.routing.TransactionRouterTest.dummySignal();
-     if (getTransactionCount_val1_input.val!=null) 
-      getTransactionCount_p1=getTransactionCount_val1_input.val;
-     if (getTransactionCount_val2_input.val!=null) 
-      getTransactionCount_p2=getTransactionCount_val2_input.val;
-     TransactionRouter.getTransactionCount(getTransactionCount_p1,getTransactionCount_p2);
-    }
-    catch (java.lang.Throwable $27){getTransactionCount_caught=$27;
-     getTransactionCount_ex=getTransactionCount_caught;
-    }}
-    com.factory.routing.TransactionRouterTest.assertResult("getTransactionCount",getTransactionCount_isCounter,getTransactionCount_expectedExs,getTransactionCount_ex);
     }
    }/*getTransactionCount_val2*/
    }
   }/*getTransactionCount_val1*/
   netrexx.lang.RexxIO.Say("  Method getTransactionCount boundary exhaustion completed.");
   netrexx.lang.RexxIO.Say("=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ===");
-  return;}
- 
- 
- @SuppressWarnings("unchecked") 
- 
- public static void assertResult(java.lang.String methodName,int isCounter,java.util.ArrayList expectedExs,java.lang.Throwable ex){
-  java.lang.String thrownEx=null;
-  int npeExpected=0;
-  int i=0;
-  int matched=0;
-  java.lang.String expEx=null;
-  java.lang.Class expectedClass=null;
-  int idx=0;
-  java.lang.String exp=null;
-  if (isCounter!=0) 
-   {
-    if (ex==null) 
-     {
-      netrexx.lang.RexxIO.Say("Assertion failure in "+methodName+": counter-example bypassed validation (no exception thrown)");
-      java.lang.System.exit(1);
-     }
-    thrownEx=ex.getClass().getName();
-    if (thrownEx.equals("java.lang.NullPointerException")) 
-     {
-      npeExpected=0;
-      {int $28=(expectedExs.size())-1;i=0;i:for(;i<=$28;i++){
-       if ((((java.lang.String)(expectedExs.get(i)))).equals("java.lang.NullPointerException")) 
-        npeExpected=1;
-       }
-      }/*i*/
-      if (npeExpected==0) 
-       {
-        netrexx.lang.RexxIO.Say("Assertion failure in "+methodName+": ungraceful crash (NullPointerException)");
-        ex.printStackTrace();
-        java.lang.System.exit(1);
-       }
-     }
-    matched=0;
-    {int $29=(expectedExs.size())-1;i=0;i:for(;i<=$29;i++){
-     expEx=(java.lang.String)(expectedExs.get(i));
-     {try{
-      expectedClass=java.lang.Class.forName(expEx);
-      if (expectedClass.isInstance((java.lang.Object)ex)) 
-       matched=1;
-     }
-     catch (java.lang.ClassNotFoundException $30){
-      ;
-     }}
-     }
-    }/*i*/
-    if (matched==0) 
-     {
-      netrexx.lang.RexxIO.Say("Assertion failure in "+methodName+": caught "+thrownEx+" ("+ex.getMessage()+") but none of the expected exceptions matched.");
-      netrexx.lang.RexxIO.Say("Expected exceptions for "+methodName+":");
-      {int $31=(expectedExs.size())-1;idx=0;idx:for(;idx<=$31;idx++){
-       exp=(java.lang.String)(expectedExs.get(idx));
-       if (exp==null) 
-        exp="null";
-       netrexx.lang.RexxIO.Say("  - "+exp);
-       }
-      }/*idx*/
-      java.lang.System.exit(1);
-     }
-   }
-  else 
-   {
-    if (ex!=null) 
-     {
-      netrexx.lang.RexxIO.Say("Assertion failure in "+methodName+": happy path regression (unexpected exception "+ex.getClass().getName()+": "+ex.getMessage()+")");
-      ex.printStackTrace();
-      java.lang.System.exit(1);
-     }
-   }
   return;}
  
  

@@ -29,6 +29,11 @@ done
 echo "[3/5] Compiling and self-correcting main class..."
 ./bin/self_correct_loop.tcl "generated/${CLASS_NAME}.nrx"
 
+# Re-index the local workspace context database with compiled classes
+echo "[3.5/5] Re-indexing local context database..."
+java -cp "../../rascal-shell-stable.jar:../../target/dependency/*" org.rascalmpl.shell.RascalShell ContextExtractor "$(pwd)" "$(pwd)/.context/extracted.sql"
+sqlite3 ".context/project_context.db" < ".context/extracted.sql"
+
 # 4. Generate tests
 echo "[4/5] Generating boundary fuzzer tests..."
 ./bin/run_test_generator.sh "${CLASS_NAME}"

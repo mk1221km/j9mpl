@@ -53,26 +53,48 @@ class TransactionRouterTest public
       loop routeTransaction_val2 over recordBounds
         routeTransaction_val2_input = RecordFuzzInput routeTransaction_val2
         routeTransaction_p2 = com.factory.routing.TransactionRecord null
-        routeTransaction_isCounter = int 0
-        routeTransaction_expectedExs = java.util.ArrayList()
-        if routeTransaction_val1_input.isCounter \= 0 then do
-          routeTransaction_isCounter = 1
-          routeTransaction_expectedExs.add(routeTransaction_val1_input.expected)
+        routeTransaction_counterCount = int 0
+        if routeTransaction_val1_input.isCounter \= 0 then routeTransaction_counterCount = routeTransaction_counterCount + 1
+        if routeTransaction_val2_input.isCounter \= 0 then routeTransaction_counterCount = routeTransaction_counterCount + 1
+        if routeTransaction_counterCount <= 1 then do
+          routeTransaction_expectedEx = String null
+          if routeTransaction_val1_input.isCounter \= 0 then do
+            routeTransaction_expectedEx = routeTransaction_val1_input.expected
+          end
+          if routeTransaction_val2_input.isCounter \= 0 then do
+            routeTransaction_expectedEx = routeTransaction_val2_input.expected
+          end
+          do
+            if 1 == 0 then TransactionRouterTest.dummySignal()
+            if routeTransaction_val1_input.val \== null then routeTransaction_p1 = routeTransaction_val1_input.val
+            routeTransaction_p2 = routeTransaction_val2_input.rec
+            TransactionRouter.routeTransaction(routeTransaction_p1, routeTransaction_p2)
+            if routeTransaction_expectedEx \== null then do
+              say "Assertion Failure in routeTransaction: counter-example bypassed validation (no exception thrown). Expected: " || routeTransaction_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if routeTransaction_expectedEx == null then do
+              say "Assertion Failure in routeTransaction: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(routeTransaction_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== routeTransaction_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in routeTransaction: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || routeTransaction_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
         end
-        if routeTransaction_val2_input.isCounter \= 0 then do
-          routeTransaction_isCounter = 1
-          routeTransaction_expectedExs.add(routeTransaction_val2_input.expected)
-        end
-        routeTransaction_ex = Throwable null
-        do
-          if 1 == 0 then TransactionRouterTest.dummySignal()
-          if routeTransaction_val1_input.val \== null then routeTransaction_p1 = routeTransaction_val1_input.val
-          routeTransaction_p2 = routeTransaction_val2_input.rec
-          TransactionRouter.routeTransaction(routeTransaction_p1, routeTransaction_p2)
-        catch routeTransaction_caught = Throwable
-          routeTransaction_ex = routeTransaction_caught
-        end
-        TransactionRouterTest.assertResult('routeTransaction', routeTransaction_isCounter, routeTransaction_expectedExs, routeTransaction_ex)
       end
     end
     say "  Method routeTransaction boundary exhaustion completed."
@@ -81,21 +103,43 @@ class TransactionRouterTest public
     loop initRoutingTable_val1 over dbPathBounds
       initRoutingTable_val1_input = FuzzInput initRoutingTable_val1
       initRoutingTable_p1 = java.lang.String null
-      initRoutingTable_isCounter = int 0
-      initRoutingTable_expectedExs = java.util.ArrayList()
-      if initRoutingTable_val1_input.isCounter \= 0 then do
-        initRoutingTable_isCounter = 1
-        initRoutingTable_expectedExs.add(initRoutingTable_val1_input.expected)
+      initRoutingTable_counterCount = int 0
+      if initRoutingTable_val1_input.isCounter \= 0 then initRoutingTable_counterCount = initRoutingTable_counterCount + 1
+      if initRoutingTable_counterCount <= 1 then do
+        initRoutingTable_expectedEx = String null
+        if initRoutingTable_val1_input.isCounter \= 0 then do
+          initRoutingTable_expectedEx = initRoutingTable_val1_input.expected
+        end
+        do
+          if 1 == 0 then TransactionRouterTest.dummySignal()
+          if initRoutingTable_val1_input.val \== null then initRoutingTable_p1 = initRoutingTable_val1_input.val
+          TransactionRouter.initRoutingTable(initRoutingTable_p1)
+          if initRoutingTable_expectedEx \== null then do
+            say "Assertion Failure in initRoutingTable: counter-example bypassed validation (no exception thrown). Expected: " || initRoutingTable_expectedEx
+            java.lang.System.exit(1)
+          end
+        catch caughtEx = Throwable
+          thrownClass = caughtEx.getClass().getName()
+          if initRoutingTable_expectedEx == null then do
+            say "Assertion Failure in initRoutingTable: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+            caughtEx.printStackTrace()
+            java.lang.System.exit(1)
+          end
+          else do
+            matched = int 0
+            do
+              expectedClass = java.lang.Class.forName(initRoutingTable_expectedEx)
+              if expectedClass.isInstance(caughtEx) then matched = 1
+            catch ClassNotFoundException
+              if thrownClass \== initRoutingTable_expectedEx then matched = 1
+            end
+            if matched == 0 then do
+              say "Assertion Failure in initRoutingTable: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || initRoutingTable_expectedEx
+              java.lang.System.exit(1)
+            end
+          end
+        end
       end
-      initRoutingTable_ex = Throwable null
-      do
-        if 1 == 0 then TransactionRouterTest.dummySignal()
-        if initRoutingTable_val1_input.val \== null then initRoutingTable_p1 = initRoutingTable_val1_input.val
-        TransactionRouter.initRoutingTable(initRoutingTable_p1)
-      catch initRoutingTable_caught = Throwable
-        initRoutingTable_ex = initRoutingTable_caught
-      end
-      TransactionRouterTest.assertResult('initRoutingTable', initRoutingTable_isCounter, initRoutingTable_expectedExs, initRoutingTable_ex)
     end
     say "  Method initRoutingTable boundary exhaustion completed."
 
@@ -106,78 +150,53 @@ class TransactionRouterTest public
       loop getTransactionCount_val2 over stringBounds
         getTransactionCount_val2_input = FuzzInput getTransactionCount_val2
         getTransactionCount_p2 = java.lang.String null
-        getTransactionCount_isCounter = int 0
-        getTransactionCount_expectedExs = java.util.ArrayList()
-        if getTransactionCount_val1_input.isCounter \= 0 then do
-          getTransactionCount_isCounter = 1
-          getTransactionCount_expectedExs.add(getTransactionCount_val1_input.expected)
+        getTransactionCount_counterCount = int 0
+        if getTransactionCount_val1_input.isCounter \= 0 then getTransactionCount_counterCount = getTransactionCount_counterCount + 1
+        if getTransactionCount_val2_input.isCounter \= 0 then getTransactionCount_counterCount = getTransactionCount_counterCount + 1
+        if getTransactionCount_counterCount <= 1 then do
+          getTransactionCount_expectedEx = String null
+          if getTransactionCount_val1_input.isCounter \= 0 then do
+            getTransactionCount_expectedEx = getTransactionCount_val1_input.expected
+          end
+          if getTransactionCount_val2_input.isCounter \= 0 then do
+            getTransactionCount_expectedEx = getTransactionCount_val2_input.expected
+          end
+          do
+            if 1 == 0 then TransactionRouterTest.dummySignal()
+            if getTransactionCount_val1_input.val \== null then getTransactionCount_p1 = getTransactionCount_val1_input.val
+            if getTransactionCount_val2_input.val \== null then getTransactionCount_p2 = getTransactionCount_val2_input.val
+            TransactionRouter.getTransactionCount(getTransactionCount_p1, getTransactionCount_p2)
+            if getTransactionCount_expectedEx \== null then do
+              say "Assertion Failure in getTransactionCount: counter-example bypassed validation (no exception thrown). Expected: " || getTransactionCount_expectedEx
+              java.lang.System.exit(1)
+            end
+          catch caughtEx = Throwable
+            thrownClass = caughtEx.getClass().getName()
+            if getTransactionCount_expectedEx == null then do
+              say "Assertion Failure in getTransactionCount: happy path regression (unexpected exception: " || thrownClass || ": " || caughtEx.getMessage() || ")"
+              caughtEx.printStackTrace()
+              java.lang.System.exit(1)
+            end
+            else do
+              matched = int 0
+              do
+                expectedClass = java.lang.Class.forName(getTransactionCount_expectedEx)
+                if expectedClass.isInstance(caughtEx) then matched = 1
+              catch ClassNotFoundException
+                if thrownClass \== getTransactionCount_expectedEx then matched = 1
+              end
+              if matched == 0 then do
+                say "Assertion Failure in getTransactionCount: caught " || thrownClass || " (" || caughtEx.getMessage() || ") but expected " || getTransactionCount_expectedEx
+                java.lang.System.exit(1)
+              end
+            end
+          end
         end
-        if getTransactionCount_val2_input.isCounter \= 0 then do
-          getTransactionCount_isCounter = 1
-          getTransactionCount_expectedExs.add(getTransactionCount_val2_input.expected)
-        end
-        getTransactionCount_ex = Throwable null
-        do
-          if 1 == 0 then TransactionRouterTest.dummySignal()
-          if getTransactionCount_val1_input.val \== null then getTransactionCount_p1 = getTransactionCount_val1_input.val
-          if getTransactionCount_val2_input.val \== null then getTransactionCount_p2 = getTransactionCount_val2_input.val
-          TransactionRouter.getTransactionCount(getTransactionCount_p1, getTransactionCount_p2)
-        catch getTransactionCount_caught = Throwable
-          getTransactionCount_ex = getTransactionCount_caught
-        end
-        TransactionRouterTest.assertResult('getTransactionCount', getTransactionCount_isCounter, getTransactionCount_expectedExs, getTransactionCount_ex)
       end
     end
     say "  Method getTransactionCount boundary exhaustion completed."
 
     say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
-
-  method assertResult(methodName = String, isCounter = int, expectedExs = java.util.ArrayList, ex = Throwable) public static
-    if isCounter \= 0 then do
-      if ex == null then do
-        say "Assertion failure in " || methodName || ": counter-example bypassed validation (no exception thrown)"
-        java.lang.System.exit(1)
-      end
-      thrownEx = ex.getClass().getName()
-      if thrownEx == "java.lang.NullPointerException" then do
-        npeExpected = int 0
-        loop i = 0 to expectedExs.size() - 1
-          if (String expectedExs.get(i)) == "java.lang.NullPointerException" then npeExpected = 1
-        end
-        if npeExpected == 0 then do
-          say "Assertion failure in " || methodName || ": ungraceful crash (NullPointerException)"
-          ex.printStackTrace()
-          java.lang.System.exit(1)
-        end
-      end
-      matched = int 0
-      loop i = 0 to expectedExs.size() - 1
-        expEx = String expectedExs.get(i)
-        do
-          expectedClass = java.lang.Class.forName(expEx)
-          if expectedClass.isInstance(ex) then matched = 1
-        catch ClassNotFoundException
-          nop
-        end
-      end
-      if matched == 0 then do
-        say "Assertion failure in " || methodName || ": caught " || thrownEx || " (" || ex.getMessage() || ") but none of the expected exceptions matched."
-        say "Expected exceptions for " || methodName || ":"
-        loop idx = 0 to expectedExs.size() - 1
-          exp = String expectedExs.get(idx)
-          if exp == null then exp = "null"
-          say "  - " || exp
-        end
-        java.lang.System.exit(1)
-      end
-    end
-    else do
-      if ex \= null then do
-        say "Assertion failure in " || methodName || ": happy path regression (unexpected exception " || ex.getClass().getName() || ": " || ex.getMessage() || ")"
-        ex.printStackTrace()
-        java.lang.System.exit(1)
-      end
-    end
 
   method dummySignal() private static signals java.lang.Throwable
     nop

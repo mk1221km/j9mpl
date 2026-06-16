@@ -73,6 +73,9 @@ proc setupWorkspace {className specPath} {
     # Copy spec markdown file
     file copy $specPath [file join $jobDir "generated" [file tail $specPath]]
     
+    # Copy pom.xml for Rascal dependency resolution
+    file copy [file join $projectDir "pom.xml"] [file join $jobDir "pom.xml"]
+    
     # Copy existing synthesized class files and other nrx files if present to preserve manual refinement
     foreach f [glob -nocomplain -tails -directory [file join $projectDir "generated"] *.nrx] {
         file copy [file join $projectDir "generated" $f] [file join $jobDir "generated" $f]
