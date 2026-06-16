@@ -77,56 +77,7 @@ The automated orchestration script [factory-loop.sh](file:///home/me/code/j9mpl/
 
 ---
 
-## 5. Relational RAG: Rascal Context Extractor ([src/ContextExtractor.rsc](file:///home/me/code/j9mpl/src/ContextExtractor.rsc))
-
-We implemented a production-grade Rascal Meta-Programming Language (MPL) script at [src/ContextExtractor.rsc](file:///home/me/code/j9mpl/src/ContextExtractor.rsc) to perform static code analysis and populate the SQLite ledger database:
-
-* **M3 Model Generation:** Generates an M3 model from the target Java source directories.
-* **Declarations Extraction:** Maps logical URIs to physical files and line coordinates.
-* **Containment Hierarchy:** Maps parent structures to child structures.
-* **Symbol References Resolution:** Resolves code references (uses) and maps them back to their enclosing logical caller context by checking physical span overlaps.
-* **Structured Output:** Emits the extracted facts as a highly optimized bulk transaction SQL file `.context/extracted.sql`.
-
-#### To Execute the Extractor:
-First, download JDT dependencies via Maven (runs against the unblocked HTTP repository configured in [pom.xml](file:///home/me/code/j9mpl/pom.xml)):
-```bash
-mvn dependency:copy-dependencies -DoutputDirectory=target/dependency/
-```
-
-Run the extractor module:
-```bash
-java -cp "rascal-shell-stable.jar:target/dependency/*" org.rascalmpl.shell.RascalShell ContextExtractor /home/me/code/j9mpl /home/me/code/j9mpl/.context/extracted.sql
-```
-
-Load the data into the context ledger:
-```bash
-sqlite3 .context/project_context.db < .context/extracted.sql
-```
-
----
-
-## 6. The Go Context Resolver ([bin/context_resolver.go](file:///home/me/code/j9mpl/bin/context_resolver.go))
-
-To prevent **Syntax Contamination** and **Cognitive Translation Drag** (where Java syntax leaks back into synthesized NetRexx blocks) without adding Python runtime overhead, the workspace uses a compiled **Go Context Resolver**:
-
-1. **Structural Analysis**: Rascal parses the compiled Java files to populate the logical relations in SQLite (`project_context.db`).
-2. **Context Delivery**: The Go-based orchestration engine resolves the logical symbol URI using the code inside [bin/context_resolver.go](file:///home/me/code/j9mpl/bin/context_resolver.go). It maps the intermediate Java path back to the source `.nrx` file and performs a straight-line keyword block scan to extract pure NetRexx code.
-
-#### Compilation:
-To compile the resolver into a native static binary:
-```bash
-go build -o bin/context_resolver bin/context_resolver.go
-```
-
-#### Example Usage:
-To retrieve the clean NetRexx source for a method context:
-```bash
-./bin/context_resolver "|java+method:///com/factory/telemetry/TelemetryEngine/processData(com.sun.net.httpserver.HttpExchange,com.factory.telemetry.TelemetryRecord)|"
-```
-
----
-
-## 7. Environment Summary
+## 5. Environment Summary
 
 * **OS:** Linux
 * **JVM Platform:** IBM Semeru Runtime Open Edition 26.0.1.0 (Eclipse OpenJ9 VM)
