@@ -13,6 +13,8 @@ This report summarizes the major architectural milestones, engineering achieveme
 | **Phase III** | Self-Correction & Sandboxing | Resolved null safety, nested logic, and sandbox containment. | [self_correct_loop.tcl](file:///home/me/code/j9mpl/bin/self_correct_loop.tcl) |
 | **Phase IV** | AST Boundary Matching | Schema consolidation and JSON metaprogramming. | [TestGenerator.rsc](file:///home/me/code/j9mpl/src/TestGenerator.rsc) |
 | **Phase V** | IDE Diagnostics & Classpath | DTO source extraction and classpath ordering. | [MetricRecord.nrx](file:///home/me/code/j9mpl/generated/MetricRecord.nrx), [TransactionRecord.nrx](file:///home/me/code/j9mpl/generated/TransactionRecord.nrx) |
+| **Phase VI** | Inline Gating & Re-indexing | Inline exception-matching type assertions and bootstrapped context database re-indexing. | [TestGenerator.rsc](file:///home/me/code/j9mpl/src/TestGenerator.rsc) |
+| **Phase VII** | Accretion Flywheel | Automated selection and accretion of machine-verified method implementations. | [accrete_exemplars.go](file:///home/me/code/j9mpl/bin/accrete_exemplars.go), [job_queue.tcl](file:///home/me/code/j9mpl/bin/job_queue.tcl) |
 
 ---
 
@@ -42,6 +44,8 @@ We then modified [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pi
 ### F. Inline Type-Matching & Counter-Example Isolation
 We implemented strict inline exception type-matching assertions inside the generated test suites, enforcing that caught exceptions correspond precisely to the expected validation faults. We also isolated parameter counter-examples so that at most one parameter is fuzzed with an invalid value in any test iteration, ensuring 100% deterministic test execution.
 
+### G. The Automated Selection and Accretion Flywheel
+We closed the learning loop by implementing a behaviorist selection utility [accrete_exemplars.go](file:///home/me/code/j9mpl/bin/accrete_exemplars.go). When a compiled class successfully passes fuzzer verification, the Go utility extracts the verified method bodies directly from source `.nrx` files and commits them to the `unified_exemplars` ledger. These are dynamically loaded and injected as few-shot Layer 3.5 templates in future prompt generations, letting the machine train itself using its own verified successes.
 
 ---
 
@@ -52,7 +56,9 @@ We implemented strict inline exception type-matching assertions inside the gener
 
 1. **Rejection of H2/Python Bloat**:
    By explicitly rejecting the H2 database driver (a common remote model hallucination) and sweeping out Python scripting, we kept the verification runtime strictly tied to native Go, Tcl, NetRexx, and SQLite. This minimized dependency bloat, container overhead, and runtime latency.
-2. **Isolation and Workspace Integrity**:
+2. **Rejection of CUE IR**:
+   We formally rejected CUE (Configure, Unify, Execute) integration as an Intermediate Representation (IR). Doing so preserves our **offline-first sandboxing** constraint (avoiding package resolution downloads) and prevents semantic translation drift, keeping the Remote LLM aligned directly with native NetRexx types.
+3. **Isolation and Workspace Integrity**:
    The parallel job queue supervisor ([job_queue.tcl](file:///home/me/code/j9mpl/bin/job_queue.tcl)) ensures workspace isolation. If a run fails, the parent workspace is unaffected.
-3. **IDE-Friendly Synthesis**:
+4. **IDE-Friendly Synthesis**:
    By matching class names to filenames and structuring DTOs cleanly, the synthesized code integrates into modern development tools (like VS Code and Eclipse) with zero diagnostics or false-positive errors.

@@ -69,8 +69,20 @@ To transform the property-based fuzzer into an exact type-matching assertion eng
 5. **Workspace Dependencies & JVM Classpaths**: Modified [job_queue.tcl](file:///home/me/code/j9mpl/bin/job_queue.tcl) to copy `pom.xml` to isolated directories so that the Rascal Maven resolver succeeds in loading the Java AST libraries. Adjusted JVM wildcards in [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pipeline.sh) to point directly to root directories (`../../target/dependency/*`), bypassing symbolic link resolution limitations.
 6. **Zero-Error Validation Sweep**: Ran the job queue supervisor sequentially. Both jobs successfully converged, compiled, generated test harnesses, and passed fuzzer checks cleanly.
 
-## 6. Next Session Goals
-* **Continuous Fuzz Tuning**: Scale fuzzer boundary vectors to support deeper nested structural validations.
-* **Unified Pipeline Indexing**: Ensure re-indexing hooks dynamically reflect schema validation rules across the unified ledger.
+## 6. The Automated Selection & Accretion Flywheel (Phase VII)
+
+To close the self-reinforcing learning loop:
+1. **Accretion Utility**: Developed [accrete_exemplars.go](file:///home/me/code/j9mpl/bin/accrete_exemplars.go), a compiled Go utility that extracts successfully verified NetRexx method implementations from their source `.nrx` files.
+2. **Flywheel Ledger Integration**: Integrated the utility into the [job_queue.tcl](file:///home/me/code/j9mpl/bin/job_queue.tcl) supervisor success handler. Upon successful completion of compilation and sandbox fuzzing gates, verified implementations are committed to the `unified_exemplars` database table under `domain_scope = 'Implementation.NetRexx'`.
+3. **Context Reinforcement**: Updated [spec_parser.go](file:///home/me/code/j9mpl/bin/spec_parser.go) to query these exemplars and inject them as a new, zero-dependency, local few-shot prompt layer (Layer 3.5), allowing the system to reinforce verified code syntax.
+
+## 7. Rejection of CUE Backend Integration & certified Static Baseline
+
+We evaluated and formally rejected CUE as an Intermediate Representation (IR):
+* **Operational Isolation**: Bundling CUE would require importing external Go modules from remote networks, violating our **offline-first sandboxing** constraint.
+* **Simplification**: Our existing schema mapping in [project_context.db](file:///home/me/code/j9mpl/.context/project_context.db) combined with [spec_parser.go](file:///home/me/code/j9mpl/bin/spec_parser.go) validator functions already enforces the necessary boundary checks and DTO/DDL co-generation without the overhead of CUE lattice evaluation.
+* **Direct Token Reinforcement**: Native NetRexx method signatures in `unified_exemplars` provide direct behavioral reinforcement for prompt generation, preventing semantic drift.
+
+The Track Alpha baseline is officially frozen and certified for stable production.
 
 
