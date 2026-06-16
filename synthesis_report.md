@@ -50,6 +50,16 @@ During this development cycle, the database schema consolidation and spec parser
 4. **Decoupled External Script Dependency:** Removed the legacy python injector `scratch/inject_boundaries.py` and modified [bin/run_test_generator.sh](file:///home/me/code/j9mpl/bin/run_test_generator.sh), keeping fuzzer generation entirely self-contained within the compiled binaries and Rascal compiler.
 5. **End-to-End Validation:** Ran `tclsh bin/job_queue.tcl generated/TransactionRouterSpec.md generated/MetricsLoggerSpec.md` sequentially. The pipeline converged and successfully executed all sandboxed fuzzer tests with exit code 0.
 
-## 4. Next Session Goals
+## 4. VS Code Editor Diagnostics & DTO Compiler Pipeline Separation (Phase V)
+
+To resolve IDE type resolution errors (where VS Code flagged `MetricRecord` and `TransactionRecord` as unknown variables/types):
+1. **Source Extraction**: Extracted the secondary/shared DTO classes into distinct public source files: [MetricRecord.nrx](file:///home/me/code/j9mpl/generated/MetricRecord.nrx) and [TransactionRecord.nrx](file:///home/me/code/j9mpl/generated/TransactionRecord.nrx).
+2. **Redundant Declaration Purge**: Removed the duplicate/local definitions from the main source files [MetricsLogger.nrx](file:///home/me/code/j9mpl/generated/MetricsLogger.nrx) and [TransactionRouter.nrx](file:///home/me/code/j9mpl/generated/TransactionRouter.nrx).
+3. **Workspace Isolation Propagation**: Configured [job_queue.tcl](file:///home/me/code/j9mpl/bin/job_queue.tcl) to copy all `*.nrx` files in `generated/` to the isolated worker workspaces.
+4. **Pipeline Compile Precedence**: Modified [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pipeline.sh) to translate and compile `*Record.nrx` files first, placing their `.class` files onto the classpath before main classes are compiled.
+5. **Zero-Error Verification Sweep**: Executed the job supervisor pipeline sequentially, verifying that both jobs compile cleanly and execute all sandboxed fuzzer checks successfully.
+
+## 5. Next Session Goals
 * **Harness Exception Assertion Gate:** Integrate the `expected_output_state` field from `unified_exemplars` directly into the sandboxed fuzzer catch blocks to execute assert validations on target exceptions.
 * **Unified Pipeline Indexing:** Ensure re-indexing hooks dynamically reflect schema validation rules across the unified ledger.
+

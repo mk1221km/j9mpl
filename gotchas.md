@@ -81,3 +81,16 @@ Redirect `stderr` to `stdout` within the Tcl `exec` invocation using `2>@1`. Thi
 set status [catch {exec {*}$cmd 2>@1} result]
 ```
 
+---
+
+## 6. VS Code Editor Type Resolution & DTO Extraction
+
+### The Gotcha
+When defining multiple classes in a single NetRexx source file, only the main class matching the file name can be `public`; secondary DTO classes must be `shared`.
+While the NetRexx compiler (`nrc`) translates this setup cleanly by generating separate `.class` outputs, VS Code editor extensions (like the Red Hat Java language support or custom Rexx parsers) perform static source-based analysis. Because there is no `.nrx` or `.java` source file matching the secondary class name (e.g., no `MetricRecord.nrx`), the editor fails to resolve the type in other files (like test harnesses) and flags the constructors/variables as "unknown variables".
+
+### The Fix
+- Extract secondary DTO classes into their own dedicated source files named exactly after the class (e.g., [MetricRecord.nrx](file:///home/me/code/j9mpl/generated/MetricRecord.nrx) and [TransactionRecord.nrx](file:///home/me/code/j9mpl/generated/TransactionRecord.nrx)) and declare them `public`.
+- Modify the build pipeline (specifically [run_job_pipeline.sh](file:///home/me/code/j9mpl/bin/run_job_pipeline.sh)) to translate and compile these helper `*Record.nrx` files first, placing the compiled classes onto the classpath (`bin/`) before the main classes are compiled.
+
+
