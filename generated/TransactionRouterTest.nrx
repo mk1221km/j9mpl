@@ -7,10 +7,10 @@ class TransactionRouterTest public
     say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
     
     -- Boundary payloads
-    stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
+    stringBounds = ['normal_string_test', ''' OR ''1''=''1', '''; DROP TABLE system_metrics; --', ''' UNION SELECT null, null, null --', '/etc/passwd', '../../../etc/passwd', 'C:\\Windows\\win.ini', null, '', '   ']
     dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
-    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
-    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
+    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(1.7976931348623157e+308), Rexx(-1.7976931348623157e+308)]
+    rexxBounds = [Rexx('normal'), Rexx(''), Rexx(0), Rexx(1), Rexx(-1), Rexx(2147483647), Rexx(-2147483648), Rexx(2147483648), Rexx(-2147483649)]
     
     -- Build TransactionRecord boundary instances
     recordBounds = java.util.ArrayList()
@@ -19,21 +19,21 @@ class TransactionRouterTest public
       loop nameVal over stringBounds
         loop valVal over doubleBounds
           rec = TransactionRecord()
-          if tsVal \= "null" then rec.priority = String tsVal
-          if nameVal \= "null" then rec.receiver = String nameVal
-          if tsVal \= "null" then rec.sender = String tsVal
+          if tsVal \== null then if tsVal \== "null" then rec.priority = String tsVal
+          if nameVal \== null then if nameVal \== "null" then rec.receiver = String nameVal
+          if tsVal \== null then if tsVal \== "null" then rec.sender = String tsVal
           rec.amount = valVal
-          if nameVal \= "null" then rec.txId = String nameVal
+          if nameVal \== null then if nameVal \== "null" then rec.txId = String nameVal
           recordBounds.add(rec)
         end
       end
     end
-    if stringBounds = null | dbPathBounds = null | doubleBounds = null | rexxBounds = null | recordBounds = null then say "null"
+    if stringBounds \== null & dbPathBounds \== null & doubleBounds \== null & rexxBounds \== null & recordBounds \== null then say "ok"
 
     say "Testing method routeTransaction..."
     loop val1 over dbPathBounds
       routeTransaction_p1 = java.lang.String null
-      if val1 \= "null" then routeTransaction_p1 = java.lang.String val1
+      if val1 \== null then if val1 \== "null" then routeTransaction_p1 = java.lang.String val1
       loop val2 over recordBounds
         routeTransaction_p2 = com.factory.routing.TransactionRecord null
         routeTransaction_p2 = com.factory.routing.TransactionRecord val2
@@ -50,7 +50,7 @@ class TransactionRouterTest public
     say "Testing method initRoutingTable..."
     loop val1 over dbPathBounds
       initRoutingTable_p1 = java.lang.String null
-      if val1 \= "null" then initRoutingTable_p1 = java.lang.String val1
+      if val1 \== null then if val1 \== "null" then initRoutingTable_p1 = java.lang.String val1
       do
         TransactionRouter.initRoutingTable(initRoutingTable_p1)
       catch RuntimeException
@@ -63,10 +63,10 @@ class TransactionRouterTest public
     say "Testing method getTransactionCount..."
     loop val1 over dbPathBounds
       getTransactionCount_p1 = java.lang.String null
-      if val1 \= "null" then getTransactionCount_p1 = java.lang.String val1
+      if val1 \== null then if val1 \== "null" then getTransactionCount_p1 = java.lang.String val1
       loop val2 over stringBounds
         getTransactionCount_p2 = java.lang.String null
-        if val2 \= "null" then getTransactionCount_p2 = java.lang.String val2
+        if val2 \== null then if val2 \== "null" then getTransactionCount_p2 = java.lang.String val2
         do
           TransactionRouter.getTransactionCount(getTransactionCount_p1, getTransactionCount_p2)
         catch RuntimeException

@@ -7,10 +7,10 @@ class MetricsLoggerTest public
     say "=== [Phase III] Starting Boundary Input Exhaustion Test for MetricsLogger ==="
     
     -- Boundary payloads
-    stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
+    stringBounds = ['normal_string_test', ''' OR ''1''=''1', '''; DROP TABLE system_metrics; --', ''' UNION SELECT null, null, null --', '/etc/passwd', '../../../etc/passwd', 'C:\\Windows\\win.ini', null, '', '   ']
     dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
-    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
-    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
+    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(1.7976931348623157e+308), Rexx(-1.7976931348623157e+308)]
+    rexxBounds = [Rexx('normal'), Rexx(''), Rexx(0), Rexx(1), Rexx(-1), Rexx(2147483647), Rexx(-2147483648), Rexx(2147483648), Rexx(-2147483649)]
     
     -- Build MetricRecord boundary instances
     recordBounds = java.util.ArrayList()
@@ -19,19 +19,19 @@ class MetricsLoggerTest public
       loop nameVal over stringBounds
         loop valVal over doubleBounds
           rec = MetricRecord()
-          if tsVal \= "null" then rec.timestamp = String tsVal
-          if nameVal \= "null" then rec.metricName = String nameVal
+          if tsVal \== null then if tsVal \== "null" then rec.timestamp = String tsVal
+          if nameVal \== null then if nameVal \== "null" then rec.metricName = String nameVal
           rec.metricValue = valVal
           recordBounds.add(rec)
         end
       end
     end
-    if stringBounds = null | dbPathBounds = null | doubleBounds = null | rexxBounds = null | recordBounds = null then say "null"
+    if stringBounds \== null & dbPathBounds \== null & doubleBounds \== null & rexxBounds \== null & recordBounds \== null then say "ok"
 
     say "Testing method logMetric..."
     loop val1 over dbPathBounds
       logMetric_p1 = java.lang.String null
-      if val1 \= "null" then logMetric_p1 = java.lang.String val1
+      if val1 \== null then if val1 \== "null" then logMetric_p1 = java.lang.String val1
       loop val2 over recordBounds
         logMetric_p2 = com.factory.metrics.MetricRecord null
         logMetric_p2 = com.factory.metrics.MetricRecord val2
@@ -44,5 +44,35 @@ class MetricsLoggerTest public
       end
     end
     say "  Method logMetric boundary exhaustion completed."
+
+    say "Testing method getAverageMetric..."
+    loop val1 over dbPathBounds
+      getAverageMetric_p1 = java.lang.String null
+      if val1 \== null then if val1 \== "null" then getAverageMetric_p1 = java.lang.String val1
+      loop val2 over stringBounds
+        getAverageMetric_p2 = java.lang.String null
+        if val2 \== null then if val2 \== "null" then getAverageMetric_p2 = java.lang.String val2
+        do
+          MetricsLogger.getAverageMetric(getAverageMetric_p1, getAverageMetric_p2)
+        catch RuntimeException
+          -- Silent capture of expected exceptions
+          nop
+        end
+      end
+    end
+    say "  Method getAverageMetric boundary exhaustion completed."
+
+    say "Testing method initDatabase..."
+    loop val1 over dbPathBounds
+      initDatabase_p1 = java.lang.String null
+      if val1 \== null then if val1 \== "null" then initDatabase_p1 = java.lang.String val1
+      do
+        MetricsLogger.initDatabase(initDatabase_p1)
+      catch RuntimeException
+        -- Silent capture of expected exceptions
+        nop
+      end
+    end
+    say "  Method initDatabase boundary exhaustion completed."
 
     say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="

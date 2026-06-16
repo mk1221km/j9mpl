@@ -91,31 +91,65 @@ func fetchCompletion(apiKey, prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req, err := http.NewRequest("POST", "https://api.deepseek.com/v1/chat/completions", bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return "", err
+
+	maxRetries := 5
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		req, err := http.NewRequest("POST", "https://api.deepseek.com/v1/chat/completions", bytes.NewBuffer(jsonBytes))
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+
+		// Set client timeout to 90 seconds for large outputs
+		client := &http.Client{Timeout: 90 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			fmt.Fprintf(os.Stderr, "[WARNING] API request failed (attempt %d/%d): %v\n", attempt, maxRetries, err)
+			if attempt < maxRetries {
+				sleepDuration := time.Duration(attempt*5) * time.Second
+				time.Sleep(sleepDuration)
+			}
+			continue
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			fmt.Fprintf(os.Stderr, "[WARNING] Reading API response failed (attempt %d/%d): %v\n", attempt, maxRetries, err)
+			if attempt < maxRetries {
+				sleepDuration := time.Duration(attempt*5) * time.Second
+				time.Sleep(sleepDuration)
+			}
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("API error (HTTP %d): %s", resp.StatusCode, string(body))
+			fmt.Fprintf(os.Stderr, "[WARNING] API returned HTTP status %d (attempt %d/%d)\n", resp.StatusCode, attempt, maxRetries)
+			if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusBadRequest {
+				return "", lastErr
+			}
+			if attempt < maxRetries {
+				sleepDuration := time.Duration(attempt*5) * time.Second
+				time.Sleep(sleepDuration)
+			}
+			continue
+		}
+
+		var chatResp ChatResponse
+		if err := json.Unmarshal(body, &chatResp); err != nil {
+			return "", err
+		}
+		if len(chatResp.Choices) == 0 {
+			return "", fmt.Errorf("empty response from API")
+		}
+		return chatResp.Choices[0].Message.Content, nil
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API error (HTTP %d): %s", resp.StatusCode, string(body))
-	}
-	var chatResp ChatResponse
-	if err := json.Unmarshal(body, &chatResp); err != nil {
-		return "", err
-	}
-	if len(chatResp.Choices) == 0 {
-		return "", fmt.Errorf("empty response from API")
-	}
-	return chatResp.Choices[0].Message.Content, nil
+
+	return "", fmt.Errorf("failed after %d attempts: %v", maxRetries, lastErr)
 }

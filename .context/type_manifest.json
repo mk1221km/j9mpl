@@ -1,0 +1,10 @@
+{
+  "class": "MetricsLogger",
+  "methods": [{"name": "logMetric", "parameters": [{"index": 0, "type": "java.lang.String"}, {"index": 1, "type": "com.factory.metrics.MetricRecord"}]}, {"name": "getAverageMetric", "parameters": [{"index": 0, "type": "java.lang.String"}, {"index": 1, "type": "java.lang.String"}]}, {"name": "initDatabase", "parameters": [{"index": 0, "type": "java.lang.String"}]}],
+  "records": [
+    {
+      "name": "MetricRecord",
+      "fields": [{"name": "timestamp", "type": "String"}, {"name": "metricName", "type": "String"}, {"name": "metricValue", "type": "Rexx"}]
+    }
+  ]
+}

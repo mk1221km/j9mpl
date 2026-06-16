@@ -14,7 +14,7 @@ cd $projectDir
 # Enforce local bin precedence across all fork and exec boundaries
 set env(PATH) "$projectDir/bin:$env(PATH)"
 
-set maxWorkers 2
+set maxWorkers 1
 set activeCount 0
 set queue $argv
 set exitCode 0
@@ -79,6 +79,7 @@ proc setupWorkspace {className specPath} {
     file link [file join $jobDir "rascal-shell-stable.jar"] [file join $projectDir "rascal-shell-stable.jar"]
     file link [file join $jobDir "ecj-3.46.0.jar"] [file join $projectDir "ecj-3.46.0.jar"]
     file link [file join $jobDir "src"] [file join $projectDir "src"]
+    file link [file join $jobDir "scratch"] [file join $projectDir "scratch"]
     
     # Copy all files from main bin/ to job bin/ (excluding the com directory) to preserve isolated path resolution
     foreach f [glob -nocomplain -tails -directory [file join $projectDir "bin"] *] {

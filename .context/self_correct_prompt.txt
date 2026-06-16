@@ -1,91 +1,94 @@
 [SYSTEM INVARIANT VIOLATION]
 The previous NetRexx output failed compiler validation.
 
-Target Symbol Context: method main (lines 6-79)
+Target Symbol Context: method main (lines 8-80)
 Compiler Diagnostic:
-line 13: Warning: Variable is set but not used
+line 23: Error: The method 'MetricRecord()' cannot be found in class 'com.factory.metrics.MetricsLoggerTest' or a superclass
 Context:
-rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
-^^^^^^^^^^
+rec = MetricRecord()
+^^^^^^^^^^^^
 
 Original NetRexx Code Context:
 ```rexx
   method main(args = String[]) public static
-    say "=== [Phase III] Starting Boundary Input Exhaustion Test for TransactionRouter ==="
+    say "=== [Phase III] Starting Boundary Input Exhaustion Test for MetricsLogger ==="
     
     -- Boundary payloads
-    stringBounds = ["", "normal_string_test", "'; DROP TABLE system_metrics; --", "null"]
+    stringBounds = ['normal_string_test', ''' OR ''1''=''1', '''; DROP TABLE system_metrics; --', ''' UNION SELECT null, null, null --', '/etc/passwd', '../../../etc/passwd', 'C:\\Windows\\win.ini', null, '', '   ']
     dbPathBounds = ["generated/metrics_test.db", ":memory:", "null"]
-    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(999999999), Rexx(1.79e+308), Rexx(-1.79e+308)]
-    rexxBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx("normal"), Rexx("")]
+    doubleBounds = [Rexx(0), Rexx(1), Rexx(-1), Rexx(1.7976931348623157e+308), Rexx(-1.7976931348623157e+308)]
+    rexxBounds = [Rexx('normal'), Rexx(''), Rexx(0), Rexx(1), Rexx(-1), Rexx(2147483647), Rexx(-2147483648), Rexx(2147483648), Rexx(-2147483649)]
     
-    -- Build TransactionRecord boundary instances
+    -- Build MetricRecord boundary instances
     recordBounds = java.util.ArrayList()
     recordBounds.add(null)
     loop tsVal over stringBounds
       loop nameVal over stringBounds
         loop valVal over doubleBounds
-          rec = TransactionRecord()
-          if tsVal \= "null" then rec.priority = String tsVal
-          if nameVal \= "null" then rec.receiver = String nameVal
-          if tsVal \= "null" then rec.sender = String tsVal
-          rec.amount = valVal
-          if nameVal \= "null" then rec.txId = String nameVal
+          rec = MetricRecord()
+          if tsVal \= "null" then rec.timestamp = String tsVal
+          if nameVal \= "null" then rec.metricName = String nameVal
+          rec.metricValue = valVal
           recordBounds.add(rec)
         end
       end
     end
+    if stringBounds = null | dbPathBounds = null | doubleBounds = null | rexxBounds = null | recordBounds = null then say "null"
 
-    say "Testing method routeTransaction..."
+    say "Testing method logMetric..."
     loop val1 over dbPathBounds
-      routeTransaction_p1 = java.lang.String null
-      if val1 \= "null" then routeTransaction_p1 = java.lang.String val1
+      logMetric_p1 = java.lang.String null
+      if val1 \= "null" then logMetric_p1 = java.lang.String val1
       loop val2 over recordBounds
-        routeTransaction_p2 = com.factory.routing.TransactionRecord null
-        routeTransaction_p2 = com.factory.routing.TransactionRecord val2
+        logMetric_p2 = com.factory.metrics.MetricRecord null
+        logMetric_p2 = com.factory.metrics.MetricRecord val2
         do
-          TransactionRouter.routeTransaction(routeTransaction_p1, routeTransaction_p2)
+          MetricsLogger.logMetric(logMetric_p1, logMetric_p2)
         catch RuntimeException
           -- Silent capture of expected exceptions
           nop
         end
       end
     end
-    say "  Method routeTransaction boundary exhaustion completed."
+    say "  Method logMetric boundary exhaustion completed."
 
-    say "Testing method initRoutingTable..."
+    say "Testing method getAverageMetric..."
     loop val1 over dbPathBounds
-      initRoutingTable_p1 = java.lang.String null
-      if val1 \= "null" then initRoutingTable_p1 = java.lang.String val1
+      getAverageMetric_p1 = java.lang.String null
+      if val1 \= "null" then getAverageMetric_p1 = java.lang.String val1
+      loop val2 over stringBounds
+        getAverageMetric_p2 = java.lang.String null
+        if val2 \= "null" then getAverageMetric_p2 = java.lang.String val2
+        do
+          MetricsLogger.getAverageMetric(getAverageMetric_p1, getAverageMetric_p2)
+        catch RuntimeException
+          -- Silent capture of expected exceptions
+          nop
+        end
+      end
+    end
+    say "  Method getAverageMetric boundary exhaustion completed."
+
+    say "Testing method initDatabase..."
+    loop val1 over dbPathBounds
+      initDatabase_p1 = java.lang.String null
+      if val1 \= "null" then initDatabase_p1 = java.lang.String val1
       do
-        TransactionRouter.initRoutingTable(initRoutingTable_p1)
+        MetricsLogger.initDatabase(initDatabase_p1)
       catch RuntimeException
         -- Silent capture of expected exceptions
         nop
       end
     end
-    say "  Method initRoutingTable boundary exhaustion completed."
-
-    say "Testing method getTransactionCount..."
-    loop val1 over dbPathBounds
-      getTransactionCount_p1 = java.lang.String null
-      if val1 \= "null" then getTransactionCount_p1 = java.lang.String val1
-      loop val2 over stringBounds
-        getTransactionCount_p2 = java.lang.String null
-        if val2 \= "null" then getTransactionCount_p2 = java.lang.String val2
-        do
-          TransactionRouter.getTransactionCount(getTransactionCount_p1, getTransactionCount_p2)
-        catch RuntimeException
-          -- Silent capture of expected exceptions
-          nop
-        end
-      end
-    end
-    say "  Method getTransactionCount boundary exhaustion completed."
+    say "  Method initDatabase boundary exhaustion completed."
 
     say "=== [Phase III] Boundary Input Exhaustion Test Completed successfully! ==="
 ```
 
 Correct the scope, type allocation, or syntax inside the target block.
-IMPORTANT: If the block contains database operations using a 'dbPath = String' parameter, you MUST ensure they are guarded with `if dbPath \= null & dbPath \= "null" then do` before connecting via JDBC, to prevent creating database files in the current working directory named 'null'.
+IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:
+1. Variable declarations MUST follow the NetRexx syntax: 'varName = Type initialValue' (e.g. 'dbPath = String null', 'avg = Rexx 0', 'count = int 0'). Do NOT use Java-style declarations like 'Type varName = value' or 'String dbPath = null' as they will cause syntax errors.
+2. NetRexx methods do NOT have a terminating 'end' keyword at the method level. Only inner blocks like 'do', 'loop', and 'select' should be closed with 'end'. Do NOT append a trailing 'end' at the end of the method body.
+3. Checked exceptions (like Exception, SQLException) can ONLY be caught inside a 'do ... catch' block if the body of that 'do' block calls a method that is explicitly declared to throw/signal that exception. If no such method is called, catching checked exceptions is a compile-time error. For 'main', do not catch checked exceptions, or just catch 'RuntimeException' / 'Throwable', or avoid catch blocks entirely.
+4. If the block contains database operations using a 'dbPath = String' parameter, you MUST ensure they are guarded with `if dbPath \= null & dbPath \= "null" then do` before connecting via JDBC, to prevent creating database files in the current working directory named 'null'.
 Output ONLY the revised, complete NetRexx source block. Do not include markdown code block formatting or explanations outside the block.

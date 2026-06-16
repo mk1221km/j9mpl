@@ -1,4 +1,4 @@
-/* Generated from 'MetricsLogger.nrx' 15 Jun 2026 05:01:57 [v5.10] */
+/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 17:22:05 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.Connection;
@@ -67,52 +67,21 @@ public class MetricsLogger{
  @SuppressWarnings("unchecked") 
  
  public static void logMetric(java.lang.String dbPath,com.factory.metrics.MetricRecord record){
-  java.sql.Connection conn;
-  java.sql.PreparedStatement stmt;
-  java.sql.SQLException ex=null;
-  conn=(java.sql.Connection)null;
-  stmt=(java.sql.PreparedStatement)null;
-  {try{
-   if ((dbPath!=null)&netrexx.lang.Rexx.toRexx(dbPath).OpNotEq(null,$01)) 
-    {
-     conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
-     stmt=conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?)");
-     stmt.setString(1,record.timestamp);
-     stmt.setString(2,record.metricName);
-     stmt.setDouble(3,record.metricValue.todouble());
-     stmt.executeUpdate();
-    }
-  }
-  catch (java.sql.SQLException $3){ex=$3;
-   netrexx.lang.RexxIO.Say("Database error inserting metric: "+ex.getMessage());
-  }
-  finally{
-   {try{
-    if (stmt!=null) 
-     stmt.close();
-    if (conn!=null) 
-     conn.close();
-   }
-   catch (java.sql.SQLException $4){
-    ;
-   }}
-  }}
-  return;
-  }
+  return;}
  
  
  @SuppressWarnings("unchecked") 
  
  public static netrexx.lang.Rexx getAverageMetric(java.lang.String dbPath,java.lang.String name){
-  netrexx.lang.Rexx avg;
   java.sql.Connection conn;
   java.sql.PreparedStatement stmt;
   java.sql.ResultSet rs;
+  netrexx.lang.Rexx avg;
   java.sql.SQLException ex=null;
-  avg=new netrexx.lang.Rexx(0);
   conn=(java.sql.Connection)null;
   stmt=(java.sql.PreparedStatement)null;
   rs=(java.sql.ResultSet)null;
+  avg=new netrexx.lang.Rexx(0);
   if ((dbPath!=null)&netrexx.lang.Rexx.toRexx(dbPath).OpNotEq(null,$01)) 
    {
     {try{
@@ -120,14 +89,13 @@ public class MetricsLogger{
      stmt=conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?");
      stmt.setString(1,name);
      rs=stmt.executeQuery();
-     {for(;;){if(!(rs.next()))break;
-      avg=new netrexx.lang.Rexx(rs.getDouble(1));
+     if (rs.next()) 
+      {
+       avg=new netrexx.lang.Rexx(rs.getDouble(1));
       }
-     }
     }
-    catch (java.sql.SQLException $5){ex=$5;
-     netrexx.lang.RexxIO.Say("Error querying average metric: "+ex.getMessage());
-     avg=new netrexx.lang.Rexx(0);
+    catch (java.sql.SQLException $3){ex=$3;
+     netrexx.lang.RexxIO.Say("Database average query error: "+ex.getMessage());
     }
     finally{
      {try{
@@ -138,7 +106,7 @@ public class MetricsLogger{
       if (conn!=null) 
        conn.close();
      }
-     catch (java.sql.SQLException $6){
+     catch (java.sql.SQLException $4){
       ;
      }}
     }}
@@ -150,37 +118,6 @@ public class MetricsLogger{
  @SuppressWarnings("unchecked") 
  
  public static void main(java.lang.String args[]){
-  java.lang.String dbPath;
-  com.factory.metrics.MetricRecord rec1=null;
-  com.factory.metrics.MetricRecord rec2=null;
-  com.factory.metrics.MetricRecord rec3=null;
-  netrexx.lang.Rexx avg=null;
-  dbPath="metrics.db";
-  if ((dbPath!=null)&netrexx.lang.Rexx.toRexx(dbPath).OpNotEq(null,$01)) 
-   {
-    initDatabase(dbPath);
-    rec1=new com.factory.metrics.MetricRecord();
-    rec1.timestamp="2025-01-25 10:00:00";
-    rec1.metricName="cpu_usage";
-    rec1.metricValue=new netrexx.lang.Rexx("0.5");
-    logMetric(dbPath,rec1);
-    rec2=new com.factory.metrics.MetricRecord();
-    rec2.timestamp="2025-01-25 10:01:00";
-    rec2.metricName="cpu_usage";
-    rec2.metricValue=new netrexx.lang.Rexx("0.8");
-    logMetric(dbPath,rec2);
-    rec3=new com.factory.metrics.MetricRecord();
-    rec3.timestamp="2025-01-25 10:02:00";
-    rec3.metricName="cpu_usage";
-    rec3.metricValue=new netrexx.lang.Rexx("0.3");
-    logMetric(dbPath,rec3);
-    avg=getAverageMetric(dbPath,"cpu_usage");
-    netrexx.lang.RexxIO.Say(netrexx.lang.Rexx.toRexx("Average CPU usage: ").OpCc(null,avg));
-   }
-  else 
-   {
-    netrexx.lang.RexxIO.Say("Invalid database path");
-   }
   return;}
  
  

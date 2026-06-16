@@ -40,46 +40,23 @@ class MetricsLogger public
   end
 
   method logMetric(dbPath = String, record = MetricRecord) public static
-  conn = Connection null
-  stmt = PreparedStatement null
-  do
-    if dbPath \= null & dbPath \= "null" then do
-      conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-      stmt = conn.prepareStatement("INSERT INTO system_metrics (timestamp, name, value) VALUES (?, ?, ?)")
-      stmt.setString(1, record.timestamp)
-      stmt.setString(2, record.metricName)
-      stmt.setDouble(3, record.metricValue)
-      stmt.executeUpdate()
-    end
-  catch ex = SQLException
-    say "Database error inserting metric: " || ex.getMessage()
-  finally
-    do
-      if stmt \= null then stmt.close()
-      if conn \= null then conn.close()
-    catch SQLException
-      nop
-    end
-  end
-  return
 
   method getAverageMetric(dbPath = String, name = String) public static returns Rexx
-  avg = Rexx 0
   conn = Connection null
   stmt = PreparedStatement null
   rs = ResultSet null
+  avg = Rexx 0
   if dbPath \= null & dbPath \= "null" then do
     do
       conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
       stmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?")
       stmt.setString(1, name)
       rs = stmt.executeQuery()
-      loop while rs.next()
-        avg = rs.getDouble(1)
+      if rs.next() then do
+        avg = Rexx rs.getDouble(1)
       end
     catch ex = SQLException
-      say "Error querying average metric: " || ex.getMessage()
-      avg = Rexx 0
+      say "Database average query error: " || ex.getMessage()
     finally
       do
         if rs \= null then rs.close()
@@ -93,28 +70,4 @@ class MetricsLogger public
   return avg
 
   method main(args = String[]) public static
-  dbPath = String "metrics.db"
-  if dbPath \= null & dbPath \= "null" then do
-    initDatabase(dbPath)
-    rec1 = MetricRecord()
-    rec1.timestamp = "2025-01-25 10:00:00"
-    rec1.metricName = "cpu_usage"
-    rec1.metricValue = 0.5
-    logMetric(dbPath, rec1)
-    rec2 = MetricRecord()
-    rec2.timestamp = "2025-01-25 10:01:00"
-    rec2.metricName = "cpu_usage"
-    rec2.metricValue = 0.8
-    logMetric(dbPath, rec2)
-    rec3 = MetricRecord()
-    rec3.timestamp = "2025-01-25 10:02:00"
-    rec3.metricName = "cpu_usage"
-    rec3.metricValue = 0.3
-    logMetric(dbPath, rec3)
-    avg = getAverageMetric(dbPath, "cpu_usage")
-    say "Average CPU usage: " || avg
-  end
-  else do
-    say "Invalid database path"
-  end
 

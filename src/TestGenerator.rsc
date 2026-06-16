@@ -100,6 +100,30 @@ void generateTest(str className, loc declsFile, loc testFile) {
         recordFields = [<"timestamp", "String">, <"metricName", "String">, <"metricValue", "Rexx">];
     }
     
+    // Generate and write type manifest JSON
+    list[str] methodJsonList = [];
+    for (m <- methods) {
+        list[str] paramJsonList = [];
+        for (i <- [0..size(m.params)]) {
+            paramJsonList += "{\"index\": <i>, \"type\": \"<trim(m.params[i])>\"}";
+        }
+        str pJson = intercalate(", ", paramJsonList);
+        methodJsonList += "{\"name\": \"<m.name>\", \"parameters\": [<pJson>]}";
+    }
+    str mJson = intercalate(", ", methodJsonList);
+
+    list[str] fieldJsonList = [];
+    for (f <- recordFields) {
+        fieldJsonList += "{\"name\": \"<f.name>\", \"type\": \"<f.typeName>\"}";
+    }
+    str fJson = intercalate(", ", fieldJsonList);
+
+    str jsonContent = "{\n  \"class\": \"<className>\",\n  \"methods\": [<mJson>],\n  \"records\": [\n    {\n      \"name\": \"<recordType>\",\n      \"fields\": [<fJson>]\n    }\n  ]\n}";
+    
+    loc manifestLoc = declsFile;
+    manifestLoc.path = replaceFirst(declsFile.path, "declarations.csv", "type_manifest.json");
+    writeFile(manifestLoc, jsonContent);
+
     list[str] code = [];
     code += "package <packageName>";
     code += "options binary";
@@ -127,7 +151,7 @@ void generateTest(str className, loc declsFile, loc testFile) {
     for (f <- recordFields) {
         if (f.typeName == "String") {
             str loopVar = (strVarIdx % 2 == 1) ? "tsVal" : "nameVal";
-            code += "          if <loopVar> \\= \"null\" then rec.<f.name> = String <loopVar>";
+            code += "          if <loopVar> \\== null then if <loopVar> \\== \"null\" then rec.<f.name> = String <loopVar>";
             strVarIdx += 1;
         } else if (f.typeName == "Rexx") {
             code += "          rec.<f.name> = valVal";
@@ -138,7 +162,7 @@ void generateTest(str className, loc declsFile, loc testFile) {
     code += "        end";
     code += "      end";
     code += "    end";
-    code += "    if stringBounds = null | dbPathBounds = null | doubleBounds = null | rexxBounds = null | recordBounds = null then say \"null\"";
+    code += "    if stringBounds \\== null & dbPathBounds \\== null & doubleBounds \\== null & rexxBounds \\== null & recordBounds \\== null then say \"ok\"";
     code += "";
     
     // For each method, generate a nested testing loop
@@ -160,7 +184,7 @@ void generateTest(str className, loc declsFile, loc testFile) {
             
             // Casting/null check logic
             if (contains(paramType, "String")) {
-                code += "<indentStr>  if val<i+1> \\= \"null\" then <varName> = <paramType> val<i+1>";
+                code += "<indentStr>  if val<i+1> \\== null then if val<i+1> \\== \"null\" then <varName> = <paramType> val<i+1>";
             } else if (recordType != "" && contains(paramType, recordType)) {
                 code += "<indentStr>  <varName> = <paramType> val<i+1>";
             } else {
