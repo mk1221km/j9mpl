@@ -440,6 +440,7 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		prompt.WriteString("NOTE: main() is a standalone function, not a method on TransactionRouter.\n")
 		prompt.WriteString("Create the database connection inside main() using sql.Open().\n")
 		prompt.WriteString("Call helper functions via a local TransactionRouter instance.\n")
+		prompt.WriteString("IMPORTANT: Use PascalCase field names when accessing struct fields: record.TxId (NOT record.txId).\n")
 	} else {
 		sig = fmt.Sprintf("func (s *%s) %s(%s)%s", mainClassName, method.Name, goArgs, goRet)
 		if goRet == "" {
