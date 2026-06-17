@@ -11,7 +11,7 @@ Design a zero-dependency, fixed-capacity ring buffer data structure in Go that s
 
 ## 3. Data Structures
 A public struct `RingBuffer` must expose:
-* `buffer` internal fixed-size array of float64 values
+* `buf` ([1024]float64) — internal fixed-size array
 * `head` (int) — index of next write position
 * `count` (int) — number of elements currently stored
 

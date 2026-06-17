@@ -44,7 +44,7 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 	scanner := bufio.NewScanner(file)
 
 	classRegex := regexp.MustCompile(`(?i)(?:class|struct)\s+` + "`?" + `(\w+)`)
-	methodRegex := regexp.MustCompile(`^\s*(?:\d+\.|\*|-)\s+(\w+)\((.*?)\)(?:\s+[\w*]+)?\s*[:]?\s*(.*)`)
+	methodRegex := regexp.MustCompile(`^\s*(?:\d+\.|\*|-)\s+(\w+)\((.*?)\)\s*(.*)`)
 	fieldRegex := regexp.MustCompile(`^\s*(?:\*|-)\s+` + "`?" + `(\w+)` + "`?" + `\s*(?:\((.*?)\))?`)
 	titleRegex := regexp.MustCompile(`^#\s+(.*)`)
 
@@ -102,10 +102,13 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 						returns := ""
 						reqs := ""
 						if len(matches) > 3 {
-							returns = strings.TrimSpace(matches[3])
-						}
-						if len(matches) > 4 {
-							reqs = strings.TrimSpace(matches[4])
+							fullRet := strings.TrimSpace(matches[3])
+							returns = fullRet
+							// Split on ':' to separate return type from description
+							if idx := strings.Index(fullRet, ":"); idx >= 0 {
+								returns = strings.TrimSpace(fullRet[:idx])
+								reqs = strings.TrimSpace(fullRet[idx+1:])
+							}
 						}
 						currentClass.Methods = append(currentClass.Methods, SpecMethod{
 							Name:         name,
@@ -371,6 +374,8 @@ func goType(netrexxType string) string {
 		return "float64"
 	case "boolean", "bool":
 		return "bool"
+	case "[1024]float64":
+		return "[1024]float64"
 	case "connection":
 		return "*sql.DB"
 	case "preparedstatement":
@@ -401,6 +406,11 @@ func convertArgsToGo(args string) string {
 			typ = strings.TrimSpace(sub[1])
 		} else if strings.Contains(p, ":") {
 			sub := strings.SplitN(p, ":", 2)
+			name = strings.TrimSpace(sub[0])
+			typ = strings.TrimSpace(sub[1])
+		} else if strings.Contains(p, " ") && !strings.Contains(p, "[") {
+			// Space-separated name type: "value float64"
+			sub := strings.SplitN(p, " ", 2)
 			name = strings.TrimSpace(sub[0])
 			typ = strings.TrimSpace(sub[1])
 		} else {
@@ -533,6 +543,9 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		// Map NetRexx return types to Go types
 		goRet = goType(strings.TrimPrefix(goRet, "returns "))
 		goRet = " " + goRet
+	} else if strings.HasPrefix(method.Name, "New") {
+		// Constructor pattern: return pointer to self
+		goRet = " *" + mainClassName
 	}
 
 	// In Go, main() is a standalone package-level function, not a method
@@ -592,6 +605,9 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		prompt.WriteString("Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.\n\n")
 		prompt.WriteString("IMPORTANT: You are generating Go code. Output ONLY the complete Go function body for '" + sig + "'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks. Use standard Go: `func (s *Type) Name(args) (returnType, error) { ... }` with proper error handling. Use `database/sql` for queries. Always return an error as the last return value.\n")
 	} else {
+		prompt.WriteString("CONTRACT BOUNDARY ENFORCEMENT:\n")
+		prompt.WriteString("This is a pure-memory computational struct. Do NOT implement streaming interfaces (io.Writer, io.Reader) or database operations.\n")
+		prompt.WriteString("Use ONLY the struct fields defined in the skeleton. Access internal state directly via pointer receiver (r *RingBuffer).\n")
 		prompt.WriteString("Output ONLY the complete Go function body for '" + sig + "'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks.\n")
 	}
 	prompt.WriteString("NOTE: Struct fields use PascalCase — access them as record.TxId (NOT record.txId). Use Sender, Receiver, Priority, Amount with capital letters.\n")
