@@ -43,9 +43,9 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 	var spec ParsedSpec
 	scanner := bufio.NewScanner(file)
 
-	classRegex := regexp.MustCompile(`(?i)(?:class|struct)\s+(\w+)`)
-	methodRegex := regexp.MustCompile(`^\s*(?:\d+\.|\*|-)\s+(\w+)\((.*?)\)(?:\s*(returns\s+\w+))?\s*:\s*(.*)`)
-	fieldRegex := regexp.MustCompile(`^\s*(?:\*|-)\s+(\w+)\s*(?:\((.*?)\))?`)
+	classRegex := regexp.MustCompile(`(?i)(?:class|struct)\s+` + "`?" + `(\w+)`)
+	methodRegex := regexp.MustCompile(`^\s*(?:\d+\.|\*|-)\s+(\w+)\((.*?)\)(?:\s+[\w*]+)?\s*[:]?\s*(.*)`)
+	fieldRegex := regexp.MustCompile(`^\s*(?:\*|-)\s+` + "`?" + `(\w+)` + "`?" + `\s*(?:\((.*?)\))?`)
 	titleRegex := regexp.MustCompile(`^#\s+(.*)`)
 
 	var currentClass *SpecClass
@@ -70,7 +70,7 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 		// Section tracking
 		if strings.HasPrefix(trimmed, "##") {
 			lower := strings.ToLower(trimmed)
-			inDTOs = strings.Contains(lower, "dto") || strings.Contains(lower, "data transfer")
+			inDTOs = strings.Contains(lower, "dto") || strings.Contains(lower, "data transfer") || strings.Contains(lower, "data struct")
 			inInterfaces = strings.Contains(lower, "interface") || strings.Contains(lower, "method") || strings.Contains(lower, "api")
 			inInvariants = strings.Contains(lower, "invariant") || strings.Contains(lower, "layout") || strings.Contains(lower, "rule")
 			currentClass = nil
@@ -295,9 +295,9 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 	sb.WriteString(baseImports)
 	sb.WriteString("\n")
 
-	// DTO Structs (data-only classes)
+	// DTO Structs (data-only classes) — skip if main class inherits its fields
 	for _, class := range spec.Classes {
-		if len(class.Methods) == 0 {
+		if len(class.Methods) == 0 && class.Name != mainClassName {
 			sb.WriteString(fmt.Sprintf("\ntype %s struct {\n", class.Name))
 			for _, field := range class.Fields {
 				parts := strings.Split(field, "(")
@@ -317,8 +317,29 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 		}
 	}
 
-	// Main struct with method stubs — includes optional db connection handle
-	if needsDB {
+	// Main struct with method stubs — inherits fields from DTO class if exists
+	dtoFields := ""
+	for _, class := range spec.Classes {
+		if len(class.Methods) == 0 && class.Name == mainClassName {
+			for _, field := range class.Fields {
+				parts := strings.Split(field, "(")
+				fName := strings.TrimSpace(parts[0])
+				if fName == "" {
+					continue
+				}
+				fType := "string"
+				if len(parts) > 1 {
+					fType = goType(strings.TrimSpace(strings.Trim(parts[1], "()")))
+				}
+				fNameUpper := strings.ToUpper(fName[:1]) + fName[1:]
+				dtoFields += fmt.Sprintf("\t%s %s\n", fNameUpper, fType)
+			}
+			break
+		}
+	}
+	if dtoFields != "" {
+		sb.WriteString(fmt.Sprintf("\ntype %s struct {\n%s}\n", mainClassName, dtoFields))
+	} else if needsDB {
 		sb.WriteString(fmt.Sprintf("\ntype %s struct {\n\tdb *sql.DB\n}\n", mainClassName))
 	} else {
 		sb.WriteString(fmt.Sprintf("\ntype %s struct{}\n", mainClassName))
@@ -473,16 +494,31 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	}
 	prompt.WriteString("\n")
 
-	// Layer 3: Exemplar Blocks (from unified_exemplars table for SQLite/JDBC references)
-	prompt.WriteString("### LAYER 3: JDBC/SQLITE REFERENCE EXEMPLARS\n")
-	rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope LIKE '%SQLite%'")
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var snippet string
-			if err := rows.Scan(&snippet); err == nil {
-				prompt.WriteString(snippet)
-				prompt.WriteString("\n\n")
+	// Layer 3: Exemplar Blocks — adapts to domain (DB vs algorithmic)
+	if needsDB {
+		prompt.WriteString("### LAYER 3: RELATIONAL DATABASE EXEMPLARS\n")
+		rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope LIKE '%SQLite%'")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var snippet string
+				if err := rows.Scan(&snippet); err == nil {
+					prompt.WriteString(snippet)
+					prompt.WriteString("\n\n")
+				}
+			}
+		}
+	} else {
+		prompt.WriteString("### LAYER 3: ALGORITHMIC/MEMORY EXEMPLARS\n")
+		rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope LIKE '%Memory%'")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var snippet string
+				if err := rows.Scan(&snippet); err == nil {
+					prompt.WriteString(snippet)
+					prompt.WriteString("\n\n")
+				}
 			}
 		}
 	}
@@ -638,7 +674,19 @@ func main() {
 	for _, class := range spec.Classes {
 		if class.Name == mainClassName {
 			targetClass = &class
-			break
+			if len(class.Methods) > 0 {
+				break  // prefer the class with methods
+			}
+		}
+	}
+	if targetClass != nil && len(targetClass.Methods) == 0 {
+		// Fallback: find the class with methods even if name doesn't match exactly
+		for _, class := range spec.Classes {
+			if len(class.Methods) > 0 {
+				targetClass = &class
+				mainClassName = class.Name
+				break
+			}
 		}
 	}
 
