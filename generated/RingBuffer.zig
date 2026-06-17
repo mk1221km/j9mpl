@@ -10,31 +10,13 @@ pub const RingBuffer = struct {
 	pub fn init() RingBuffer {
     return RingBuffer{};
 }
-	pub fn push(self: *Self, value: f64) void {
-    self.Buf[self.Head] = value;
-    self.Head = (self.Head + 1) % 1024;
-    if (self.Count < 1024) {
-        self.Count += 1;
-    }
+	method push(value f64) public static void
+r.buf[r.head] = value;
+r.head = (r.head + 1) % 1024;
+if r.count < 1024 {
+    r.count++;
 }
-	pub fn readRange(self: *Self, dest: []f64, count: usize) []f64 {
-    const num_to_copy = @min(@min(count, self.Count), dest.len);
-    const start = (self.Head + 1024 - self.Count) % 1024;
-    for (0..num_to_copy) |i| {
-        dest[i] = self.Buf[(start + i) % 1024];
-    }
-    return dest[0..num_to_copy];
-}
-	pub fn avg(self: *Self) f64 {
-    if (self.Count == 0) return 0.0;
-    var sum: f64 = 0.0;
-    const oldest = (self.Head + 1024 - self.Count) % 1024;
-    var i: usize = 0;
-    while (i < self.Count) : (i += 1) {
-        const idx = (oldest + i) % 1024;
-        sum += self.Buf[idx];
-    }
-    return sum / @intToFloat(f64, self.Count);
-}
+	// SKELETON_readRange
+	// SKELETON_avg
 	// SKELETON_utilization
 };

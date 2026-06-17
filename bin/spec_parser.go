@@ -722,6 +722,11 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		prompt.WriteString("- Use 'void' for functions with no return value\n")
 		prompt.WriteString("- Return Zig error unions for fallible operations: `!ReturnType`\n")
 		prompt.WriteString("- Use `const Self = @This();` pattern\n")
+		prompt.WriteString("ZIG 0.16.0 SYNTAX RULES (ABSOLUTE ENFORCEMENT):\n")
+		prompt.WriteString("- For type coercion: use @as(target_type, value). Example: @as(f64, count).\n")
+		prompt.WriteString("- For integer casts: use @intCast(target_type, value).\n")
+		prompt.WriteString("- Discard unused parameters with `_ = param;`.\n")
+		prompt.WriteString("- Use `while (cond) : (continue_expr) { }` for loops, not C-style for.\n")
 	} else {
 		sig = fmt.Sprintf("func (s *%s) %s(%s)%s", mainClassName, method.Name, goArgs, goRet)
 		if goRet == "" {

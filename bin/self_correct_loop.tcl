@@ -170,7 +170,7 @@ if {$runIncremental} {
                 puts "  -> Extracting block from code fences..."
                 set revisedBlock [lindex $parts 1]
                 puts "  -> Extracted block:\n$revisedBlock\n----------------------"
-                regsub -nocase {^(?:rexx|netrexx|go)?\n} $revisedBlock "" revisedBlock
+                regsub -nocase {^(?:rexx|netrexx|go|zig)?\n} $revisedBlock "" revisedBlock
             } else {
                 puts "  -> Using raw model output..."
                 set revisedBlock $modelRaw
@@ -382,7 +382,7 @@ if {$runIncremental} {
                             set parts [split $normalizedRaw "\u0000"]
                             if {[llength $parts] >= 3} {
                                 set revisedBlock [lindex $parts 1]
-                                regsub -nocase {^(?:rexx|netrexx|go)?\n} $revisedBlock "" revisedBlock
+                                regsub -nocase {^(?:rexx|netrexx|go|zig)?\n} $revisedBlock "" revisedBlock
                             } else {
                                 set revisedBlock $modelRaw
                             }
@@ -475,7 +475,7 @@ if {$runIncremental} {
             puts "  -> Extracting block from code fences..."
             set revisedBlock [lindex $parts 1]
             puts "  -> Extracted block:\n$revisedBlock\n----------------------"
-            regsub -nocase {^(?:rexx|netrexx|go)?\n} $revisedBlock "" revisedBlock
+            regsub -nocase {^(?:rexx|netrexx|go|zig)?\n} $revisedBlock "" revisedBlock
         } else {
             puts "  -> Using raw model output..."
             set revisedBlock $modelRaw
