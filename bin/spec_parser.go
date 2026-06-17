@@ -308,6 +308,10 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 	for _, class := range spec.Classes {
 		if len(class.Methods) > 0 && class.Name == mainClassName {
 			for _, m := range class.Methods {
+				// main() lives in its own file (main.go) with separate imports
+				if m.Name == "main" {
+					continue
+				}
 				sb.WriteString(fmt.Sprintf("\n// SKELETON_%s\n", m.Name))
 			}
 		}
