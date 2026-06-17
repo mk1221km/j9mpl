@@ -44,7 +44,7 @@ func ParseMarkdownSpec(filePath string) (ParsedSpec, error) {
 	scanner := bufio.NewScanner(file)
 
 	classRegex := regexp.MustCompile(`(?i)(?:class|struct)\s+` + "`?" + `(\w+)`)
-	methodRegex := regexp.MustCompile(`^\s*(?:\d+\.|\*|-)\s+(\w+)\((.*?)\)\s*(.*)`)
+	methodRegex := regexp.MustCompile("^\\s*(?:\\d+\\.|\\*|-)\\s+`?(\\w+)`?\\((.*?)\\)\\s*(.*)")
 	fieldRegex := regexp.MustCompile(`^\s*(?:\*|-)\s+` + "`?" + `(\w+)` + "`?" + `\s*(?:\((.*?)\))?`)
 	titleRegex := regexp.MustCompile(`^#\s+(.*)`)
 
@@ -198,6 +198,90 @@ func convertArgsToNetRexx(args string) string {
 		}
 	}
 	return strings.Join(nrxParts, ", ")
+}
+
+func zigType(specType string) string {
+	switch strings.ToLower(strings.TrimSpace(specType)) {
+	case "string":
+		return "[]const u8"
+	case "int", "integer":
+		return "i64"
+	case "rexx":
+		return "f64"
+	case "double", "real", "float", "float64":
+		return "f64"
+	case "boolean", "bool":
+		return "bool"
+	case "usize":
+		return "usize"
+	case "[1024]float64", "[1024]f64":
+		return "[1024]f64"
+	default:
+		return specType
+	}
+}
+
+func GenerateZigSkeleton(spec ParsedSpec, mainClassName string) (string, error) {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("const std = @import(\"std\");\n\n"))
+
+	// DTO structs
+	for _, class := range spec.Classes {
+		if len(class.Methods) == 0 && class.Name != mainClassName {
+			sb.WriteString(fmt.Sprintf("pub const %s = struct {\n", class.Name))
+			for _, field := range class.Fields {
+				parts := strings.Split(field, "(")
+				fName := strings.TrimSpace(parts[0])
+				if fName == "" {
+					continue
+				}
+				fType := "[]const u8"
+				if len(parts) > 1 {
+					fType = zigType(strings.TrimSpace(strings.Trim(parts[1], "()")))
+				}
+				sb.WriteString(fmt.Sprintf("\t%s: %s,\n", fName, fType))
+			}
+			sb.WriteString("};\n\n")
+		}
+	}
+
+	// Main struct with fields inherited from DTO
+	dtoFields := ""
+	for _, class := range spec.Classes {
+		if len(class.Methods) == 0 && class.Name == mainClassName {
+			for _, field := range class.Fields {
+				parts := strings.Split(field, "(")
+				fName := strings.TrimSpace(parts[0])
+				if fName == "" {
+					continue
+				}
+				fType := "[]const u8"
+				if len(parts) > 1 {
+					fType = zigType(strings.TrimSpace(strings.Trim(parts[1], "()")))
+				}
+				dtoFields += fmt.Sprintf("\t%s: %s,\n", fName, fType)
+			}
+			break
+		}
+	}
+	if dtoFields != "" {
+		sb.WriteString(fmt.Sprintf("pub const %s = struct {\n%s\n\tconst Self = @This();\n\n", mainClassName, dtoFields))
+	} else {
+		sb.WriteString(fmt.Sprintf("pub const %s = struct {\n\tconst Self = @This();\n\n", mainClassName))
+	}
+
+	// Method stubs
+	for _, class := range spec.Classes {
+		if len(class.Methods) > 0 && class.Name == mainClassName {
+			for _, m := range class.Methods {
+				sb.WriteString(fmt.Sprintf("\t// SKELETON_%s\n", m.Name))
+			}
+		}
+	}
+
+	sb.WriteString("};\n")
+	return sb.String(), nil
 }
 
 func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (string, error) {
@@ -646,16 +730,38 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Derive main class name from filename, then verify against parsed classes
 	mainClassName := strings.TrimSuffix(filepath.Base(specPath), "Spec.md")
+	for _, class := range spec.Classes {
+		if len(class.Methods) > 0 {
+			mainClassName = class.Name
+			break
+		}
+	}
+
+	// Detect target language from invariants
+	targetLang := "go"
+	for _, inv := range spec.Invariants {
+		if strings.Contains(strings.ToLower(inv), "zig") {
+			targetLang = "zig"
+			break
+		}
+	}
 
 	// Emit class skeleton immediately to disk
-	skeleton, err := GenerateGoSkeleton(dbPath, spec, mainClassName)
+	var skeleton string
+	var skeletonFile string
+	if targetLang == "zig" {
+		skeleton, err = GenerateZigSkeleton(spec, mainClassName)
+		skeletonFile = filepath.Join(projectDir, "generated", mainClassName+".zig")
+	} else {
+		skeleton, err = GenerateGoSkeleton(dbPath, spec, mainClassName)
+		skeletonFile = filepath.Join(projectDir, "generated", mainClassName+".go")
+	}
 	if err != nil {
 		fmt.Printf("Error generating skeleton: %v\n", err)
 		os.Exit(1)
 	}
-
-	skeletonFile := filepath.Join(projectDir, "generated", mainClassName+".go")
 	skipWrite := false
 	if existingContent, readErr := os.ReadFile(skeletonFile); readErr == nil {
 		if !strings.Contains(string(existingContent), "SKELETON_") {
