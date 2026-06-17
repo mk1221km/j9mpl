@@ -465,6 +465,7 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	prompt.WriteString("Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.\n\n")
 
 	prompt.WriteString("IMPORTANT: You are generating Go code. Output ONLY the complete Go function body for '" + sig + "'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks. Use standard Go: `func (s *Type) Name(args) (returnType, error) { ... }` with proper error handling. Use `database/sql` for queries. Always return an error as the last return value.\n")
+	prompt.WriteString("NOTE: Struct fields use PascalCase — access them as record.TxId (NOT record.txId). Use Sender, Receiver, Priority, Amount with capital letters.\n")
 
 	return prompt.String(), nil
 }
