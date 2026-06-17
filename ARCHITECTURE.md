@@ -83,6 +83,32 @@ The ring buffer has full multi-language coverage because it was the proof-of-con
 
 ---
 
+## Transport Agnosticism
+
+The binary reads stdin and writes stdout. That is the only contract. Tcl manages the transport layer — the binary never knows whether it was invoked via pipe, Unix socket, HTTP, or any other mechanism.
+
+To switch transports, change the Tcl adapter, not the binary:
+
+```tcl
+proc pipe_transport {binary input} {
+    set fd [open "|$binary" r+]
+    puts $fd $input
+    close $fd w
+    return [string trim [read $fd]]
+}
+
+proc socket_transport {fd input} {
+    puts $fd $input
+    flush $fd
+    gets $fd line
+    return [string trim $line]
+}
+```
+
+The same `metrics.py` or `ring.py` serves either transport without modification. Transport framing (HTTP headers, socket handshakes, checksums) is stripped by the Tcl adapter before the data reaches the binary. The binary sees only a clean line of text.
+
+See `bin/transport_demo.tcl` for a working example.
+
 ## How to Add a Language
 
 1. Write a program that reads stdin, writes stdout, and implements the protocol for a module.
