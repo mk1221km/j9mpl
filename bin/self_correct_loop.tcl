@@ -214,7 +214,7 @@ if {$runIncremental} {
 
             # Execute compile check
             puts "  -> Compiling and formatting Go source for method $method..."
-            catch {exec go fmt $nrxFile} _
+            catch {exec goimports -w $nrxFile} _
             set compStatus [catch {exec go build -o /dev/null $nrxFile} compResult]
             puts $compResult
 
@@ -405,7 +405,7 @@ if {$runIncremental} {
                             }
                             
                             puts "  -> Re-compiling production file..."
-                            catch {exec go fmt $prodNrx} _
+                            catch {exec goimports -w $prodNrx} _
                             set compStatus [catch {exec go build -o /dev/null $prodNrx} compResult]
                             puts $compResult
                             
