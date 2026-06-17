@@ -274,10 +274,12 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 
 func goType(netrexxType string) string {
 	switch strings.ToLower(strings.TrimSpace(netrexxType)) {
-	case "string", "rexx":
+	case "string":
 		return "string"
 	case "int", "integer":
 		return "int"
+	case "rexx":
+		return "float64"
 	case "double", "real", "float":
 		return "float64"
 	case "boolean", "bool":
