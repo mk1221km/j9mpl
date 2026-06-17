@@ -85,6 +85,23 @@ func findProjectRoot() string {
 	}
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "pom.xml")); err == nil {
+			if _, err2 := os.Stat(filepath.Join(dir, "jobs")); err2 == nil {
+				return dir
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	// Fallback to pom.xml only
+	dir, err = os.Getwd()
+	if err != nil {
+		return "."
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "pom.xml")); err == nil {
 			return dir
 		}
 		parent := filepath.Dir(dir)
