@@ -19,6 +19,6 @@ A public struct `RingBuffer` must expose:
 The struct `RingBuffer` must implement:
 1. `init() RingBuffer`: Returns a new zero-initialized ring buffer.
 2. `push(value f64) void`: Appends a value. If full, overwrites oldest.
-3. `readRange(count usize) []f64`: Returns the last N entries.
+3. `readRange(dest: []f64, count: usize) []f64`: Copies up to N entries into the caller-owned dest buffer and returns the slice of copied elements.
 4. `avg() f64`: Returns arithmetic mean. Returns 0 if empty.
 5. `utilization() f64`: Ratio of stored to capacity (0.0 to 1.0).

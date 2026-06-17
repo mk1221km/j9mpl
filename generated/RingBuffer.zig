@@ -17,8 +17,24 @@ pub const RingBuffer = struct {
         self.Count += 1;
     }
 }
-	method readRange(count usize) public static []f64
-
-	// SKELETON_avg
+	pub fn readRange(self: *Self, dest: []f64, count: usize) []f64 {
+    const num_to_copy = @min(@min(count, self.Count), dest.len);
+    const start = (self.Head + 1024 - self.Count) % 1024;
+    for (0..num_to_copy) |i| {
+        dest[i] = self.Buf[(start + i) % 1024];
+    }
+    return dest[0..num_to_copy];
+}
+	pub fn avg(self: *Self) f64 {
+    if (self.Count == 0) return 0.0;
+    var sum: f64 = 0.0;
+    const oldest = (self.Head + 1024 - self.Count) % 1024;
+    var i: usize = 0;
+    while (i < self.Count) : (i += 1) {
+        const idx = (oldest + i) % 1024;
+        sum += self.Buf[idx];
+    }
+    return sum / @intToFloat(f64, self.Count);
+}
 	// SKELETON_utilization
 };
