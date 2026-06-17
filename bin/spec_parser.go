@@ -197,11 +197,11 @@ func convertArgsToNetRexx(args string) string {
 	return strings.Join(nrxParts, ", ")
 }
 
-func GenerateNrxSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (string, error) {
+func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (string, error) {
 	var sb strings.Builder
 	
-	// Resolve package name from DB
-	packageName := "com.factory" // default fallback
+	// Package name derived from DB or default
+	packageName := mainClassName
 	db, err := sql.Open("sqlite3", dbPath)
 	if err == nil {
 		defer db.Close()
@@ -215,14 +215,16 @@ func GenerateNrxSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (
 				pathPart := parts[len(parts)-1]
 				subParts := strings.Split(pathPart, "/")
 				if len(subParts) > 1 {
-					packageName = strings.Join(subParts[:len(subParts)-1], ".")
+					pkg := strings.ToLower(strings.Join(subParts[:len(subParts)-1], ""))
+					if pkg != "" {
+						packageName = pkg
+					}
 				}
 			}
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("package %s\n", packageName))
-	sb.WriteString("options binary\n")
+	sb.WriteString(fmt.Sprintf("package %s\n\n", strings.ToLower(strings.ReplaceAll(packageName, ".", ""))))
 
 	// Read imports from unified_exemplars ledger (data-driven, no hardcoded strings)
 	imports := ""
@@ -230,56 +232,93 @@ func GenerateNrxSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (
 		db.QueryRow("SELECT default_imports FROM unified_exemplars WHERE exemplar_id='NETREXX_GRAMMAR_BASICS'").Scan(&imports)
 	}
 	if imports == "" {
-		imports = "import java.sql.DriverManager\nimport java.sql.Connection\nimport java.sql.Statement\nimport java.sql.PreparedStatement\nimport java.sql.ResultSet\nimport java.sql.SQLException"
+		imports = "import (\"database/sql\")"
 	}
 	sb.WriteString(imports)
-	sb.WriteString("\n\n")
+	sb.WriteString("\n")
 
-	sb.WriteString(fmt.Sprintf("class %sDummy private\n\n", mainClassName))
-
-	// DTO Classes
+	// DTO Structs (data-only classes)
 	for _, class := range spec.Classes {
 		if len(class.Methods) == 0 {
-			sb.WriteString(fmt.Sprintf("class %s shared\n", class.Name))
-			sb.WriteString("  properties public\n")
+			sb.WriteString(fmt.Sprintf("\ntype %s struct {\n", class.Name))
 			for _, field := range class.Fields {
 				parts := strings.Split(field, "(")
 				fName := strings.TrimSpace(parts[0])
-				fType := "Rexx"
+				fType := "string"
 				if len(parts) > 1 {
-					fType = strings.TrimSpace(strings.Trim(parts[1], "()"))
+					fType = goType(strings.TrimSpace(strings.Trim(parts[1], "()")))
 				}
-				sb.WriteString(fmt.Sprintf("    %s = %s\n", fName, fType))
+				sb.WriteString(fmt.Sprintf("\t%s %s\n", fName, fType))
 			}
-			sb.WriteString("\n")
+			sb.WriteString("}\n")
 		}
 	}
 
-	// Main public class
-	sb.WriteString(fmt.Sprintf("class %s public\n", mainClassName))
+	// Main struct with method stubs
+	sb.WriteString(fmt.Sprintf("\ntype %s struct{}\n", mainClassName))
 	for _, class := range spec.Classes {
 		if len(class.Methods) > 0 && class.Name == mainClassName {
 			for _, m := range class.Methods {
-				nrxArgs := convertArgsToNetRexx(m.Args)
+				goArgs := convertArgsToGo(m.Args)
 				retClause := ""
-				retType := "void"
 				if m.Returns != "" {
 					retClause = " " + m.Returns
-					retType = strings.TrimSpace(strings.TrimPrefix(m.Returns, "returns"))
 				}
 
-				sb.WriteString(fmt.Sprintf("  method %s(%s) public static%s\n", m.Name, nrxArgs, retClause))
-				sb.WriteString(fmt.Sprintf("    -- SKELETON_%s\n", m.Name))
-				if retType == "void" || m.Name == "main" {
-					sb.WriteString("    nop\n\n")
+				sb.WriteString(fmt.Sprintf("\n// %s implements %s\nfunc (s *%s) %s(%s) %s {\n", m.Name, m.Name, mainClassName, m.Name, goArgs, retClause))
+				sb.WriteString(fmt.Sprintf("\t// SKELETON_%s\n", m.Name))
+				if strings.TrimSpace(retClause) == "" {
+					sb.WriteString("}\n")
 				} else {
-					sb.WriteString(fmt.Sprintf("    return %s null\n\n", retType))
+					sb.WriteString(fmt.Sprintf("\treturn %s{}\n}\n", retClause))
 				}
 			}
 		}
 	}
 
 	return sb.String(), nil
+}
+
+func goType(netrexxType string) string {
+	switch strings.ToLower(strings.TrimSpace(netrexxType)) {
+	case "string", "rexx":
+		return "string"
+	case "int", "integer":
+		return "int"
+	case "double", "real", "float":
+		return "float64"
+	case "boolean", "bool":
+		return "bool"
+	case "connection":
+		return "*sql.DB"
+	case "preparedstatement":
+		return "*sql.Stmt"
+	case "resultset":
+		return "*sql.Rows"
+	default:
+		return netrexxType
+	}
+}
+
+func convertArgsToGo(args string) string {
+	parts := strings.Split(args, ",")
+	var goParts []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		sub := strings.SplitN(p, "=", 2)
+		if len(sub) == 2 {
+			name := strings.TrimSpace(sub[0])
+			typ := strings.TrimSpace(sub[1])
+			goParts = append(goParts, fmt.Sprintf("%s %s", name, goType(typ)))
+		} else {
+			// No type: assume string
+			goParts = append(goParts, fmt.Sprintf("%s string", strings.TrimSpace(sub[0])))
+		}
+	}
+	return strings.Join(goParts, ", ")
 }
 
 func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, invariants []string, report string, classes []SpecClass) (string, error) {
@@ -334,34 +373,19 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		}
 	}
 
-	// Layer 3.5: Local Machine-Verified Reference Implementations (Few-Shots)
-	prompt.WriteString("### LAYER 3.5: LOCAL MACHINE-VERIFIED REFERENCE IMPLEMENTATIONS (FEW-SHOTS)\n")
-	prompt.WriteString("The following NetRexx implementations have been machine-verified as correct, secure, and compliant with all invariants. Use them as reference patterns:\n\n")
-	implRows, err := db.Query("SELECT exemplar_id, fact_context_predicate, few_shot_prompt_block FROM unified_exemplars WHERE domain_scope = 'Implementation.NetRexx'")
-	if err == nil {
-		defer implRows.Close()
-		for implRows.Next() {
-			var exID, predicate, snippet string
-			if err := implRows.Scan(&exID, &predicate, &snippet); err == nil {
-				prompt.WriteString(fmt.Sprintf("Exemplar: %s\n", exID))
-				prompt.WriteString(fmt.Sprintf("Specification Context: %s\n", predicate))
-				prompt.WriteString("Implementation:\n")
-				prompt.WriteString(snippet)
-				prompt.WriteString("\n\n")
-			}
-		}
-	}
-
 	// Layer 4: Specific Method Target Requirements
 	prompt.WriteString("### LAYER 4: TARGET METHOD REQUIREMENTS\n")
-	prompt.WriteString(fmt.Sprintf("Class: %s\n", mainClassName))
+	prompt.WriteString(fmt.Sprintf("Package: %s\n", mainClassName))
 	
-	nrxArgs := convertArgsToNetRexx(method.Args)
-	retClause := ""
-	if method.Returns != "" {
-		retClause = " " + method.Returns
+	goArgs := convertArgsToGo(method.Args)
+	goRet := method.Returns
+	if goRet != "" {
+		goRet = " " + goRet
 	}
-	sig := fmt.Sprintf("method %s(%s) public static%s", method.Name, nrxArgs, retClause)
+	sig := fmt.Sprintf("func (s *%s) %s(%s)%s", mainClassName, method.Name, goArgs, goRet)
+	if goRet == "" {
+		sig = fmt.Sprintf("func (s *%s) %s(%s)", mainClassName, method.Name, goArgs)
+	}
 	prompt.WriteString(fmt.Sprintf("Target Method Signature: %s\n", sig))
 	prompt.WriteString(fmt.Sprintf("Requirements: %s\n\n", method.Requirements))
 
@@ -371,12 +395,12 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	}
 	prompt.WriteString("\n")
 
-	prompt.WriteString("VALIDATION & EXCEPTION INVARIANTS:\n")
-	prompt.WriteString("You MUST validate all input arguments and their fields at the very beginning of the method (before any database operation or do-catch block) and throw/signal the expected exception types for invalid or boundary inputs:\n")
-	prompt.WriteString("1. If a String parameter (like dbPath, sender, receiver, etc.), or a record argument itself (like record), OR any String field of a record argument (e.g. record.timestamp, record.metricName, record.txId, record.sender, record.receiver, record.priority) is null, empty (\"\"), or contains only whitespace, you MUST throw/signal `java.lang.IllegalArgumentException` using the `signal` statement (e.g. `signal java.lang.IllegalArgumentException(\"Invalid input\")`).\n")
-	prompt.WriteString("2. If a String parameter, OR any String field of a record argument, represents a path traversal attempt (e.g. starts with \"/etc/\", contains \"..\", or contains \"C:\\\\Windows\" / starts with \"C:\\\\\"), you MUST throw/signal `java.io.IOException` using `signal java.io.IOException(\"Path traversal blocked\")`.\n")
-	prompt.WriteString("3. If a String parameter, OR any String field of a record argument, contains a SQL injection attempt (e.g. contains \"' OR '1'='1\", \"; DROP TABLE\", or \"' UNION SELECT\"), you MUST throw/signal `java.sql.SQLException` using `signal java.sql.SQLException(\"SQL Injection blocked\")`.\n")
-	prompt.WriteString("4. If a parameter, OR any field of a record argument, needs to be parsed as a number (like amount, metricValue, etc.), and the string/Rexx value is null or is not a valid number (e.g. \"NaN\", \"Infinity\", \"-Infinity\", overflows Double range, or overflows Constant/Integer range for integer parameters), you MUST throw/signal `java.lang.NumberFormatException` using `signal java.lang.NumberFormatException(\"Invalid number format\")`.\n")
+	prompt.WriteString("VALIDATION & ERROR HANDLING:\n")
+	prompt.WriteString("You MUST validate all input arguments at the beginning of the function (before any database operation):\n")
+	prompt.WriteString("1. If a string parameter is empty or whitespace-only, return an error: `return 0, fmt.Errorf(\"invalid input: %%s is empty\", name)`\n")
+	prompt.WriteString("2. If a dbPath parameter contains path traversal (\"..\", \"/etc/\"), return `fmt.Errorf(\"path traversal blocked\")`\n")
+	prompt.WriteString("3. If a string parameter contains SQL injection patterns, return `fmt.Errorf(\"sql injection blocked\")`\n")
+	prompt.WriteString("4. Use Go-style error returns, not Java exceptions. Return `(result, error)` where error is nil on success.\n")
 	prompt.WriteString("Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.\n\n")
 
  	prompt.WriteString("IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:\n")
@@ -433,7 +457,7 @@ func main() {
 	mainClassName := strings.TrimSuffix(filepath.Base(specPath), "Spec.md")
 
 	// Emit class skeleton immediately to disk
-	skeleton, err := GenerateNrxSkeleton(dbPath, spec, mainClassName)
+	skeleton, err := GenerateGoSkeleton(dbPath, spec, mainClassName)
 	if err != nil {
 		fmt.Printf("Error generating skeleton: %v\n", err)
 		os.Exit(1)

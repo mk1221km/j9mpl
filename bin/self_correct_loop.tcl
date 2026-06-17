@@ -10,10 +10,9 @@ if {[llength $argv] < 1} {
 
 set nrxFile [file normalize [lindex $argv 0]]
 set projectDir [file dirname [file dirname [file normalize [info script]]]]
-set classpath "bin:lib/NetRexxF.jar:target/dependency/sqlite-jdbc-3.45.1.0.jar:target/dependency/slf4j-api-1.7.36.jar"
 
-# Set CLASSPATH env variable for the child processes
-set env(CLASSPATH) "bin"
+# Go native compilation — no classpath needed
+set env(GOFLAGS) "-mod=mod"
 
 proc cleanUpMethodBlock {revisedBlock methodSig} {
     set revisedBlock [string trim $revisedBlock]
@@ -209,8 +208,9 @@ if {$runIncremental} {
             file delete -force $javaArtifact
 
             # Execute compile check
-            puts "  -> Executing compile check for method $method..."
-            set compStatus [catch {exec bin/self_correct $nrxFile -cp $classpath} compResult]
+            puts "  -> Compiling and formatting Go source for method $method..."
+            catch {exec go fmt $nrxFile} _
+            set compStatus [catch {exec go build -o /dev/null $nrxFile} compResult]
             puts $compResult
 
             if {$compStatus == 0} {
@@ -254,8 +254,9 @@ if {$runIncremental} {
         set javaArtifact "[file rootname $nrxFile].java"
         file delete -force $javaArtifact
 
-        puts "\[1/3\] Executing compiler validation..."
-        set status [catch {exec bin/self_correct $nrxFile -cp $classpath} result]
+        puts "\[1/3\] Formatting and compiling Go source..."
+        catch {exec go fmt $nrxFile} _
+        set status [catch {exec go build -o /dev/null $nrxFile} result]
         puts $result
 
         if {$status == 0} {
@@ -398,11 +399,9 @@ if {$runIncremental} {
                                 exit 1
                             }
                             
-                            # Purge production Java file and recompile production file
-                            set prodJava "[file rootname $prodNrx].java"
-                            file delete -force $prodJava
                             puts "  -> Re-compiling production file..."
-                            set compStatus [catch {exec bin/self_correct $prodNrx -cp $classpath} compResult]
+                            catch {exec go fmt $prodNrx} _
+                            set compStatus [catch {exec go build -o /dev/null $prodNrx} compResult]
                             puts $compResult
                             
                             set compiledSuccessfully 0

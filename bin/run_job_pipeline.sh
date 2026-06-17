@@ -12,27 +12,13 @@ echo "[1/5] Parsing specification..."
 ./bin/spec_parser "${SPEC_FILE}"
 
 # 2. Incremental synthesis prep
-echo "[2/5] Incremental Synthesis mode active. Class skeleton generated."
+echo "[2/5] Incremental Synthesis mode active. Go struct skeleton generated."
 
 # 3. Compile/self-correct main class
-echo "[3/5] Cleaning stale generation artifacts..."
-rm -f "generated/${CLASS_NAME}.java"
-
-# Compile helper record classes first if they exist
-for rec in generated/*Record.nrx; do
-  if [ -f "$rec" ]; then
-    echo "[3/5] Compiling helper record class ${rec}..."
-    ./bin/self_correct_loop.tcl "$rec"
-  fi
-done
+echo "[3/5] Formatting and compiling Go source..."
 
 echo "[3/5] Compiling and self-correcting main class..."
-./bin/self_correct_loop.tcl "generated/${CLASS_NAME}.nrx"
-
-# Re-index the local workspace context database with compiled classes
-echo "[3.5/5] Re-indexing local context database..."
-java -cp "../../rascal-shell-stable.jar:../../target/dependency/*" org.rascalmpl.shell.RascalShell ContextExtractor "$(pwd)" "$(pwd)/.context/extracted.sql"
-sqlite3 ".context/project_context.db" < ".context/extracted.sql"
+./bin/self_correct_loop.tcl "generated/${CLASS_NAME}.go"
 
 # 4. Generate tests
 echo "[4/5] Generating boundary fuzzer tests..."
@@ -40,6 +26,6 @@ echo "[4/5] Generating boundary fuzzer tests..."
 
 # 5. Compile/self-correct and run tests inside sandbox
 echo "[5/5] Compiling and executing fuzzer tests..."
-./bin/self_correct_loop.tcl "generated/${CLASS_NAME}Test.nrx"
+./bin/self_correct_loop.tcl "generated/${CLASS_NAME}_test.go"
 
 echo "=== Pipeline completed successfully for ${CLASS_NAME} ==="
