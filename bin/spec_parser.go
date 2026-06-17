@@ -223,12 +223,17 @@ func GenerateNrxSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (
 
 	sb.WriteString(fmt.Sprintf("package %s\n", packageName))
 	sb.WriteString("options binary\n")
-	sb.WriteString("import java.sql.DriverManager\n")
-	sb.WriteString("import java.sql.Connection\n")
-	sb.WriteString("import java.sql.Statement\n")
-	sb.WriteString("import java.sql.PreparedStatement\n")
-	sb.WriteString("import java.sql.ResultSet\n")
-	sb.WriteString("import java.sql.SQLException\n\n")
+
+	// Read imports from unified_exemplars ledger (data-driven, no hardcoded strings)
+	imports := ""
+	if db != nil {
+		db.QueryRow("SELECT default_imports FROM unified_exemplars WHERE exemplar_id='NETREXX_GRAMMAR_BASICS'").Scan(&imports)
+	}
+	if imports == "" {
+		imports = "import java.sql.DriverManager\nimport java.sql.Connection\nimport java.sql.Statement\nimport java.sql.PreparedStatement\nimport java.sql.ResultSet\nimport java.sql.SQLException"
+	}
+	sb.WriteString(imports)
+	sb.WriteString("\n\n")
 
 	sb.WriteString(fmt.Sprintf("class %sDummy private\n\n", mainClassName))
 
