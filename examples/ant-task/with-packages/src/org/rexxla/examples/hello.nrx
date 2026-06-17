@@ -1,7 +1,0 @@
-package org.rexxla.examples
-
-class hello
-
-  method main(args=String[]) static
-    say 'hello packages'
-    

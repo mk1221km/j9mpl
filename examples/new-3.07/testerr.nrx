@@ -1,8 +1,0 @@
-say "this is stdout"
-RexxIO.setOutputStream(System.err)
-say "this is stderr"
-RexxIO.setOutputStream(FileOutputStream("test.file"))
-say 'this is a file output'
-
-
-

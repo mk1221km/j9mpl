@@ -1,3 +1,0 @@
-/* hostname test 1 - basic functionality */
-
-pipe (hostnametest1) hostname | console | compare: compare equal /PASS/ notequal /FAIL/ | console ? command hostname | console | compare: 

@@ -1,4 +1,0 @@
-pipe (mylist runaway 60000 debug 63)
-
-   command cmd /C dir /B *.njp |
-   console

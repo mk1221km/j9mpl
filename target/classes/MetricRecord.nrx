@@ -1,8 +1,0 @@
-package com.factory.metrics
-options binary
-
-class MetricRecord public
-  properties public
-    timestamp = String
-    metricName = String
-    metricValue = Rexx

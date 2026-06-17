@@ -1,3 +1,0 @@
-Manifest-Version: 1.0
-Project-Name: transformation-factory
-Source-Name: src

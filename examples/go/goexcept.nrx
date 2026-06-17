@@ -1,6 +1,0 @@
-
-go exceptDivide()
-
-method exceptDivide() static
-  say 'In exceptDivide method'
-  say 1/0
