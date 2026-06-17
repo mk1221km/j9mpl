@@ -18,7 +18,7 @@ proc cleanUpMethodBlock {revisedBlock methodSig} {
     set revisedBlock [string trim $revisedBlock]
     
     # 1. Ensure method signature is present (Go uses 'func', NetRexx uses 'method')
-    if {$methodSig != "" && ![regexp -nocase {^\s*(func|method)\s+} $revisedBlock]} {
+    if {$methodSig != "" && ![regexp -nocase {^\s*(pub fn|func|method)\s+} $revisedBlock]} {
         puts "  -> Prepending missing function signature..."
         set revisedBlock "$methodSig\n$revisedBlock"
     }
@@ -68,6 +68,7 @@ proc cleanUpMethodBlock {revisedBlock methodSig} {
 # Navigate to project root directory
 cd $projectDir
 
+set isZig [string match "*.zig" $nrxFile]
 set isTest [string match "*_test.go" $nrxFile]
 set runIncremental 0
 if {!$isTest && [file exists [file join $projectDir ".context" "methods.txt"]]} {
@@ -213,9 +214,14 @@ if {$runIncremental} {
             file delete -force $javaArtifact
 
             # Execute compile check
-            puts "  -> Compiling and formatting Go source for method $method..."
-            catch {exec goimports -w $nrxFile} _
-            set compStatus [catch {exec go build -o /dev/null $nrxFile} compResult]
+            if {$isZig} {
+                puts "  -> Compiling Zig source for method $method..."
+                set compStatus [catch {exec zig build-obj $nrxFile --name ringbuffer} compResult]
+            } else {
+                puts "  -> Compiling and formatting Go source for method $method..."
+                catch {exec goimports -w $nrxFile} _
+                set compStatus [catch {exec go build -o /dev/null $nrxFile} compResult]
+            }
             puts $compResult
 
             if {$compStatus == 0} {
@@ -260,8 +266,12 @@ if {$runIncremental} {
         file delete -force $javaArtifact
 
         puts "\[1/3\] Formatting and compiling Go source..."
-        catch {exec go fmt $nrxFile} _
-        set status [catch {exec go build -o /dev/null $nrxFile} result]
+        if {$isZig} {
+            set status [catch {exec zig build-obj $nrxFile --name ringbuffer} result]
+        } else {
+            catch {exec go fmt $nrxFile} _
+            set status [catch {exec go build -o /dev/null $nrxFile} result]
+        }
         puts $result
 
         if {$status == 0} {
@@ -405,8 +415,12 @@ if {$runIncremental} {
                             }
                             
                             puts "  -> Re-compiling production file..."
-                            catch {exec goimports -w $prodNrx} _
-                            set compStatus [catch {exec go build -o /dev/null $prodNrx} compResult]
+                            if {$isZig} {
+                                set compStatus [catch {exec zig build-obj $prodNrx --name ringbuffer} compResult]
+                            } else {
+                                catch {exec goimports -w $prodNrx} _
+                                set compStatus [catch {exec go build -o /dev/null $prodNrx} compResult]
+                            }
                             puts $compResult
                             
                             set compiledSuccessfully 0

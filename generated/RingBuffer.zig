@@ -1,15 +1,24 @@
 const std = @import("std");
 
 pub const RingBuffer = struct {
-	buf: [1024]f64,
-	head: usize,
-	count: usize,
+	Buf: [1024]f64,
+	Head: usize,
+	Count: usize,
 
 	const Self = @This();
 
-	// SKELETON_init
-	// SKELETON_push
-	// SKELETON_readRange
+	pub fn init() RingBuffer {
+    return RingBuffer{};
+}
+	pub fn push(self: *Self, value: f64) void {
+    self.Buf[self.Head] = value;
+    self.Head = (self.Head + 1) % 1024;
+    if (self.Count < 1024) {
+        self.Count += 1;
+    }
+}
+	method readRange(count usize) public static []f64
+
 	// SKELETON_avg
 	// SKELETON_utilization
 };

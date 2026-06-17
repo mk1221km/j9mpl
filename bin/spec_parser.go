@@ -260,7 +260,8 @@ func GenerateZigSkeleton(spec ParsedSpec, mainClassName string) (string, error) 
 				if len(parts) > 1 {
 					fType = zigType(strings.TrimSpace(strings.Trim(parts[1], "()")))
 				}
-				dtoFields += fmt.Sprintf("\t%s: %s,\n", fName, fType)
+				fNameUpper := strings.ToUpper(fName[:1]) + fName[1:]
+		dtoFields += fmt.Sprintf("\t%s: %s,\n", fNameUpper, fType)
 			}
 			break
 		}
@@ -541,6 +542,40 @@ func queryCoverageGaps(dbPath string, methodName string) []CoverageGap {
 	return gaps
 }
 
+func convertArgsToZig(args string) string {
+	if args == "" {
+		return ""
+	}
+	parts := strings.Split(args, ",")
+	var zigParts []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		// Handle "name: Type" or "name = Type" or "name Type" or just "name"
+		if strings.Contains(p, ":") {
+			sub := strings.SplitN(p, ":", 2)
+			name := strings.TrimSpace(sub[0])
+			typ := zigType(strings.TrimSpace(sub[1]))
+			zigParts = append(zigParts, fmt.Sprintf("%s: %s", name, typ))
+		} else if strings.Contains(p, "=") {
+			sub := strings.SplitN(p, "=", 2)
+			name := strings.TrimSpace(sub[0])
+			typ := zigType(strings.TrimSpace(sub[1]))
+			zigParts = append(zigParts, fmt.Sprintf("%s: %s", name, typ))
+		} else if strings.Contains(p, " ") {
+			sub := strings.SplitN(p, " ", 2)
+			name := strings.TrimSpace(sub[0])
+			typ := zigType(strings.TrimSpace(sub[1]))
+			zigParts = append(zigParts, fmt.Sprintf("%s: %s", name, typ))
+		} else {
+			zigParts = append(zigParts, fmt.Sprintf("%s: void", strings.TrimSpace(p)))
+		}
+	}
+	return strings.Join(zigParts, ", ")
+}
+
 func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, invariants []string, report string, classes []SpecClass) (string, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -550,10 +585,13 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 
 	// Determine if spec needs database operations
 	needsDB := false
+	targetLang := "go"
 	for _, inv := range invariants {
 		if strings.Contains(strings.ToLower(inv), "sqlite") {
 			needsDB = true
-			break
+		}
+		if strings.Contains(strings.ToLower(inv), "zig") {
+			targetLang = "zig"
 		}
 	}
 
@@ -651,6 +689,35 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 			}
 		}
 		prompt.WriteString("Call these methods in lowercase (e.g., router.initRoutingTable(...), NOT router.InitRoutingTable(...)).\n")
+	} else if targetLang == "zig" {
+		// Zig function signature: pub fn methodName(self: *Self, args) returnType
+		zigRet := goRet
+		if zigRet == "" {
+			zigRet = " void"
+		}
+		zigArgs := convertArgsToZig(method.Args)
+		// Static-like methods (init constructors) don't take self
+		if method.Name == "init" || method.Name == "NewRingBuffer" || method.Name == "new" {
+			if zigArgs == "" {
+				sig = fmt.Sprintf("pub fn %s()%s", method.Name, zigRet)
+			} else {
+				sig = fmt.Sprintf("pub fn %s(%s)%s", method.Name, zigArgs, zigRet)
+			}
+		} else {
+			if zigArgs == "" {
+				sig = fmt.Sprintf("pub fn %s(self: *Self)%s", method.Name, zigRet)
+			} else {
+				sig = fmt.Sprintf("pub fn %s(self: *Self, %s)%s", method.Name, zigArgs, zigRet)
+			}
+		}
+		prompt.WriteString(fmt.Sprintf("Target Signature: %s\n", sig))
+		prompt.WriteString("Zig CONVENTIONS:\n")
+		prompt.WriteString("- Use 'pub fn' for public functions\n")
+		prompt.WriteString("- Init/constructor functions take NO self parameter\n")
+		prompt.WriteString("- Other methods use 'self: *Self' or 'self: *const Self'\n")
+		prompt.WriteString("- Use 'void' for functions with no return value\n")
+		prompt.WriteString("- Return Zig error unions for fallible operations: `!ReturnType`\n")
+		prompt.WriteString("- Use `const Self = @This();` pattern\n")
 	} else {
 		sig = fmt.Sprintf("func (s *%s) %s(%s)%s", mainClassName, method.Name, goArgs, goRet)
 		if goRet == "" {
