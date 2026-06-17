@@ -385,11 +385,22 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	if goRet != "" {
 		goRet = " " + goRet
 	}
-	sig := fmt.Sprintf("func (s *%s) %s(%s)%s", mainClassName, method.Name, goArgs, goRet)
-	if goRet == "" {
-		sig = fmt.Sprintf("func (s *%s) %s(%s)", mainClassName, method.Name, goArgs)
+
+	// In Go, main() is a standalone package-level function, not a method
+	var sig string
+	if method.Name == "main" {
+		sig = "func main() error"
+		prompt.WriteString(fmt.Sprintf("Target Signature: %s\n", sig))
+		prompt.WriteString("NOTE: main() is a standalone function, not a method on TransactionRouter.\n")
+		prompt.WriteString("Create the database connection inside main() using sql.Open().\n")
+		prompt.WriteString("Call helper functions via a local TransactionRouter instance.\n")
+	} else {
+		sig = fmt.Sprintf("func (s *%s) %s(%s)%s", mainClassName, method.Name, goArgs, goRet)
+		if goRet == "" {
+			sig = fmt.Sprintf("func (s *%s) %s(%s)", mainClassName, method.Name, goArgs)
+		}
+		prompt.WriteString(fmt.Sprintf("Target Signature: %s\n", sig))
 	}
-	prompt.WriteString(fmt.Sprintf("Target Method Signature: %s\n", sig))
 	prompt.WriteString(fmt.Sprintf("Requirements: %s\n\n", method.Requirements))
 
 	prompt.WriteString("Architectural Invariants & Database Schema:\n")

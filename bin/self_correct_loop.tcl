@@ -138,21 +138,19 @@ if {$runIncremental} {
                 puts "  -> Dispatching method synthesis to remote model..."
                 set modelStatus [catch {exec bin/llm --print $prompt} modelRaw]
             } else {
-                # If we are retrying, read the self-correction prompt written by self_correct Go binary
-                set scPromptFile [file join $projectDir ".context" "self_correct_prompt.txt"]
-                if {![file exists $scPromptFile]} {
-                    puts stderr "\[ERROR\] Self-correction prompt file missing for retry"
-                    exit 1
-                }
-                set fd [open $scPromptFile r]
-                set scPrompt [read $fd]
-                close $fd
+                # Build Go-targeted self-correction prompt from compiler errors
+                set goError $compResult
+                set scPrompt "The following Go function failed to compile:\n\n"
+                append scPrompt "COMPILER ERROR:\n$goError\n\n"
+                append scPrompt "Fix the function to compile successfully. Output ONLY the corrected Go function body.\n"
+                append scPrompt "Use standard Go patterns: func (s *Type) Name(args) (result, error) { ... }\n"
+                append scPrompt "Do NOT use Java or NetRexx syntax. Do NOT wrap in markdown code blocks.\n"
 
                 set backoffDelay [expr {int(pow(2, $methodRetry) * 1000)}]
                 puts "\[BACKOFF ACTIVE\]: Cooling pipeline for $backoffDelay ms before retrying..."
                 after $backoffDelay
 
-                puts "  -> Dispatching method repair request to remote model..."
+                puts "  -> Dispatching Go repair request to remote model..."
                 set modelStatus [catch {exec bin/llm --print $scPrompt} modelRaw]
             }
 
