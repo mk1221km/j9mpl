@@ -15,51 +15,82 @@ func getUserBalance(db *sql.DB, userID int) (float64, error) {
 [MISSING] Class RingBuffer not found in context ledger.
 
 [MISSING] Class RingBuffer not found in context ledger.
-  - [MISSING] Method RingBuffer.NewRingBuffer
-  - [MISSING] Method RingBuffer.Push
-  - [MISSING] Method RingBuffer.ReadRange
-  - [MISSING] Method RingBuffer.Avg
-  - [MISSING] Method RingBuffer.Utilization
+  - [MISSING] Method RingBuffer.init
+  - [MISSING] Method RingBuffer.push
+  - [MISSING] Method RingBuffer.readRange
+  - [MISSING] Method RingBuffer.avg
+  - [MISSING] Method RingBuffer.utilization
 
 
 
 ### LAYER 2.5: HELPER CLASSES AND DATA TRANSFER OBJECTS (DTOs)
 Class RingBuffer represents data transfer structures and exposes public properties:
-- buf ([1024]float64)
-- head (int)
-- count (int)
+- buf ([1024]f64)
+- head (usize)
+- count (usize)
 
 
 ### LAYER 3: ALGORITHMIC/MEMORY EXEMPLARS
-// Pure-memory ring buffer — no database, no I/O
-type RingBuffer struct {
-    Buf   [1024]float64
-    Head  int
-    Count int
-}
+// Zig ring buffer — no allocator, no I/O
+const std = @import("std");
 
-func (rb *RingBuffer) Push(value float64) {
-    rb.Buf[rb.Head] = value
-    rb.Head = (rb.Head + 1) % len(rb.Buf)
-    if rb.Count < len(rb.Buf) {
-        rb.Count++
+pub const RingBuffer = struct {
+    Buf: [1024]f64,
+    Head: usize,
+    Count: usize,
+
+    const Self = @This();
+
+    pub fn init() RingBuffer {
+        return RingBuffer{};
     }
-}
+
+    pub fn push(self: *Self, value: f64) void {
+        self.Buf[self.Head] = value;
+        self.Head = (self.Head + 1) % 1024;
+        if (self.Count < 1024) {
+            self.Count += 1;
+        }
+    }
+
+    pub fn avg(self: *Self) f64 {
+        if (self.Count == 0) return 0.0;
+        var sum: f64 = 0.0;
+        var i: usize = 0;
+        while (i < self.Count) : (i += 1) {
+            sum += self.Buf[i];
+        }
+        return sum / @as(f64, @floatFromInt(self.Count));
+    }
+};
 
 ### LAYER 4: TARGET METHOD REQUIREMENTS
 Package: RingBuffer
-Target Signature: func (s *RingBuffer) all()
+Target Signature: pub fn all(self: *Self) void
+Zig CONVENTIONS:
+- Use 'pub fn' for public functions
+- Init/constructor functions take NO self parameter
+- Other methods use 'self: *Self' or 'self: *const Self'
+- Use 'void' for functions with no return value
+- Return Zig error unions for fallible operations: `!ReturnType`
+- Use `const Self = @This();` pattern
+ZIG 0.16.0 SYNTAX RULES (ABSOLUTE ENFORCEMENT):
+- For integer-to-float coercion: use @as(f64, @floatFromInt(value)) or just @as(f64, value).
+- Do NOT use @intToFloat or standalone @floatFromInt — both fail in Zig 0.16 without context.
+- For integer casts: use @intCast(target_type, value).
+- Discard unused parameters with `_ = param;`.
+- Use `while (cond) : (continue_expr) { }` for loops, not C-style for.
 Requirements: Generate all methods.
 
 Architectural Invariants & Database Schema:
-- **Storage Engine:** In-memory contiguous array (no database)
+- **Language:** Zig
 - **Fixed Capacity:** 1024 entries
 - **Behavior on Full:** Overwrite oldest entry (circular overwrite)
-- **Thread Safety:** None required (single-threaded)
+- **Allocator:** None required (fixed-size array on stack)
 
 VALIDATION & ERROR HANDLING:
 CONTRACT BOUNDARY ENFORCEMENT:
 This is a pure-memory computational struct. Do NOT implement streaming interfaces (io.Writer, io.Reader) or database operations.
 Use ONLY the struct fields defined in the skeleton. Access internal state directly via pointer receiver (r *RingBuffer).
-Output ONLY the complete Go function body for 'func (s *RingBuffer) all()'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks.
+Output ONLY the complete Go function body for 'pub fn all(self: *Self) void'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks.
 NOTE: Struct fields use PascalCase — access them as record.TxId (NOT record.txId). Use Sender, Receiver, Priority, Amount with capital letters.
