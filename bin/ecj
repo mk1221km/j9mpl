@@ -1,5 +1,0 @@
-#!/bin/sh
-#  Shell script wrapper to invoke the modern standalone Eclipse Compiler for Java (ECJ)
-
-thisdir=$(dirname "$0")
-java -jar "$thisdir/../ecj-3.46.0.jar" "$@"

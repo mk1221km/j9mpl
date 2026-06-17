@@ -12,52 +12,54 @@ func getUserBalance(db *sql.DB, userID int) (float64, error) {
 
 ### LAYER 2: ACTIVE SYMBOL LEDGER AND SCHEMA TUPLES
 === Codebase Existence Ledger Analysis ===
-[FOUND] Class TransactionRecord exists in codebase (File: /home/me/code/j9mpl/generated/TransactionRecord.java, URI: |java+class:///com/factory/routing/TransactionRecord|)
+[MISSING] Class RingBuffer not found in context ledger.
 
-[FOUND] Class TransactionRouter exists in codebase (File: /home/me/code/j9mpl/generated/com/factory/routing/TransactionRouter.java, URI: |java+class:///com/factory/routing/TransactionRouter|)
-  - [FOUND] Method TransactionRouter.initRoutingTable (URI: |java+method:///com/factory/routing/TransactionRouter/initRoutingTable(java.lang.String)|)
-  - [FOUND] Method TransactionRouter.routeTransaction (URI: |java+method:///com/factory/routing/TransactionRouter/routeTransaction(java.lang.String,com.factory.routing.TransactionRecord)|)
-  - [FOUND] Method TransactionRouter.getTransactionCount (URI: |java+method:///com/factory/routing/TransactionRouter/getTransactionCount(java.lang.String,java.lang.String)|)
-  - [FOUND] Method TransactionRouter.main (URI: |java+method:///com/factory/routing/TransactionRouter/main(java.lang.String%5B%5D)|)
+[MISSING] Class RingBuffer not found in context ledger.
+  - [MISSING] Method RingBuffer.NewRingBuffer
+  - [MISSING] Method RingBuffer.Push
+  - [MISSING] Method RingBuffer.ReadRange
+  - [MISSING] Method RingBuffer.Avg
+  - [MISSING] Method RingBuffer.Utilization
 
 
 
 ### LAYER 2.5: HELPER CLASSES AND DATA TRANSFER OBJECTS (DTOs)
-Class TransactionRecord represents data transfer structures and exposes public properties:
-- txId (String)
-- sender (String)
-- receiver (String)
-- amount (Rexx)
-- priority (String)
+Class RingBuffer represents data transfer structures and exposes public properties:
+- buf ([1024]float64)
+- head (int)
+- count (int)
 
 
-### LAYER 3: JDBC/SQLITE REFERENCE EXEMPLARS
+### LAYER 3: ALGORITHMIC/MEMORY EXEMPLARS
+// Pure-memory ring buffer — no database, no I/O
+type RingBuffer struct {
+    Buf   [1024]float64
+    Head  int
+    Count int
+}
+
+func (rb *RingBuffer) Push(value float64) {
+    rb.Buf[rb.Head] = value
+    rb.Head = (rb.Head + 1) % len(rb.Buf)
+    if rb.Count < len(rb.Buf) {
+        rb.Count++
+    }
+}
+
 ### LAYER 4: TARGET METHOD REQUIREMENTS
-Package: TransactionRouter
-Target Signature: func (s *TransactionRouter) all()
+Package: RingBuffer
+Target Signature: func (s *RingBuffer) all()
 Requirements: Generate all methods.
 
 Architectural Invariants & Database Schema:
-- **Database Engine:** SQLite
-- **Target Table 1:** routing_rules
-- min_amount REAL (Primary Key)
-- priority TEXT (Primary Key)
-- channel TEXT
-- **Target Table 2:** transaction_log
-- tx_id TEXT (Primary Key)
-- sender TEXT
-- receiver TEXT
-- amount REAL
-- channel TEXT
-- status TEXT
+- **Storage Engine:** In-memory contiguous array (no database)
+- **Fixed Capacity:** 1024 entries
+- **Behavior on Full:** Overwrite oldest entry (circular overwrite)
+- **Thread Safety:** None required (single-threaded)
 
 VALIDATION & ERROR HANDLING:
-You MUST validate all input arguments at the beginning of the function (before any database operation):
-1. If a string parameter is empty or whitespace-only, return an error: `return 0, fmt.Errorf("invalid input: %%s is empty", name)`
-2. If a dbPath parameter contains path traversal ("..", "/etc/"), return `fmt.Errorf("path traversal blocked")`
-3. If a string parameter contains SQL injection patterns, return `fmt.Errorf("sql injection blocked")`
-4. Use Go-style error returns, not Java exceptions. Return `(result, error)` where error is nil on success.
-Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.
-
-IMPORTANT: You are generating Go code. Output ONLY the complete Go function body for 'func (s *TransactionRouter) all()'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks. Use standard Go: `func (s *Type) Name(args) (returnType, error) { ... }` with proper error handling. Use `database/sql` for queries. Always return an error as the last return value.
+CONTRACT BOUNDARY ENFORCEMENT:
+This is a pure-memory computational struct. Do NOT implement streaming interfaces (io.Writer, io.Reader) or database operations.
+Use ONLY the struct fields defined in the skeleton. Access internal state directly via pointer receiver (r *RingBuffer).
+Output ONLY the complete Go function body for 'func (s *RingBuffer) all()'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks.
 NOTE: Struct fields use PascalCase — access them as record.TxId (NOT record.txId). Use Sender, Receiver, Priority, Amount with capital letters.
