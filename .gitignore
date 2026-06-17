@@ -63,6 +63,22 @@ generated/*.db-journal
 generated/*.db-wal
 generated/testdata/
 
+# Allow source files in ringbuffer (blocked by generated/r* above)
+!generated/ringbuffer/
+!generated/ringbuffer/*.go
+!generated/ringbuffer/*.lua
+!generated/ringbuffer/*.py
+!generated/ringbuffer/*.js
+!generated/ringbuffer/*.ml
+# Keep binaries and intermediate artifacts in ringbuffer ignored
+generated/ringbuffer/ring
+generated/ringbuffer/ring-zig
+generated/ringbuffer/ring-ocaml
+generated/ringbuffer/ring-luajit
+generated/ringbuffer/*.o
+generated/ringbuffer/*.cmi
+generated/ringbuffer/*.cmx
+
 # Compiled binary artifacts
 target/classes/com/
 
