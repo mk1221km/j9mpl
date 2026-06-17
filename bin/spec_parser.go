@@ -226,15 +226,59 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 
 	sb.WriteString(fmt.Sprintf("package %s\n\n", strings.ToLower(strings.ReplaceAll(packageName, ".", ""))))
 
-	// Read imports from unified_exemplars ledger (data-driven, no hardcoded strings)
-	imports := ""
+	// Collect all field types to resolve dynamic imports
+	fieldTypes := make(map[string]bool)
+	for _, class := range spec.Classes {
+		if len(class.Methods) == 0 {
+			for _, field := range class.Fields {
+				parts := strings.Split(field, "(")
+				if len(parts) > 1 {
+					t := goType(strings.TrimSpace(strings.Trim(parts[1], "()")))
+					fieldTypes[t] = true
+				}
+			}
+		}
+	}
+
+	// Read base imports from unified_exemplars ledger
+	baseImports := ""
 	if db != nil {
-		db.QueryRow("SELECT default_imports FROM unified_exemplars WHERE exemplar_id='NETREXX_GRAMMAR_BASICS'").Scan(&imports)
+		db.QueryRow("SELECT default_imports FROM unified_exemplars WHERE exemplar_id='NETREXX_GRAMMAR_BASICS'").Scan(&baseImports)
 	}
-	if imports == "" {
-		imports = "import (\"database/sql\")"
+	if baseImports == "" {
+		baseImports = "import (\"database/sql\")"
 	}
-	sb.WriteString(imports)
+
+	// Query structural_import_mappings for dynamic package requirements
+	var dynamicPkgs []string
+	if db != nil {
+		for t := range fieldTypes {
+			var pkg string
+			err := db.QueryRow("SELECT required_package FROM structural_import_mappings WHERE primitive_type=? AND target_language='go'", t).Scan(&pkg)
+			if err == nil && !strings.Contains(baseImports, pkg) {
+				dynamicPkgs = append(dynamicPkgs, pkg)
+			}
+		}
+	}
+
+	// Build final import block
+	if len(dynamicPkgs) > 0 {
+		// Extract the import block prefix (everything before the first import entry)
+		if strings.HasPrefix(baseImports, "import (") {
+			// Insert dynamic packages before the closing paren
+			insert := "\n\t" + strings.Join(dynamicPkgs, "\n\t") + "\n"
+			baseImports = baseImports[:len(baseImports)-1] + insert + ")"
+		} else if strings.HasPrefix(baseImports, "import \"") {
+			// Single-line import, expand to multi-line
+			pkg := strings.TrimPrefix(baseImports, "import ")
+			baseImports = "import (\n\t" + pkg + "\n"
+			for _, dp := range dynamicPkgs {
+				baseImports += "\t" + dp + "\n"
+			}
+			baseImports += ")"
+		}
+	}
+	sb.WriteString(baseImports)
 	sb.WriteString("\n")
 
 	// DTO Structs (data-only classes)
@@ -252,8 +296,8 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 					fType = goType(strings.TrimSpace(strings.Trim(parts[1], "()")))
 				}
 				// Uppercase first letter for Go convention (exported fields)
-		fNameUpper := strings.ToUpper(fName[:1]) + fName[1:]
-		sb.WriteString(fmt.Sprintf("\t%s %s\n", fNameUpper, fType))
+				fNameUpper := strings.ToUpper(fName[:1]) + fName[1:]
+				sb.WriteString(fmt.Sprintf("\t%s %s\n", fNameUpper, fType))
 			}
 			sb.WriteString("}\n")
 		}
