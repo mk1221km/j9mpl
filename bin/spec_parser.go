@@ -240,13 +240,27 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 		}
 	}
 
+	// Determine if the spec requires database imports
+	needsDB := false
+	for _, inv := range spec.Invariants {
+		lower := strings.ToLower(inv)
+		if strings.Contains(lower, "sqlite") {
+			needsDB = true
+			break
+		}
+	}
+
 	// Read base imports from unified_exemplars ledger
 	baseImports := ""
-	if db != nil {
+	if needsDB && db != nil {
 		db.QueryRow("SELECT default_imports FROM unified_exemplars WHERE exemplar_id='NETREXX_GRAMMAR_BASICS'").Scan(&baseImports)
 	}
 	if baseImports == "" {
-		baseImports = "import (\"database/sql\")"
+		baseImports = ""
+	}
+	// For non-DB specs, use minimal imports. For DB specs, DB import is in baseImports.
+	if !needsDB {
+		baseImports = ""
 	}
 
 	// Query structural_import_mappings for dynamic package requirements
@@ -304,7 +318,11 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 	}
 
 	// Main struct with method stubs — includes optional db connection handle
-	sb.WriteString(fmt.Sprintf("\ntype %s struct {\n\tdb *sql.DB\n}\n", mainClassName))
+	if needsDB {
+		sb.WriteString(fmt.Sprintf("\ntype %s struct {\n\tdb *sql.DB\n}\n", mainClassName))
+	} else {
+		sb.WriteString(fmt.Sprintf("\ntype %s struct{}\n", mainClassName))
+	}
 	for _, class := range spec.Classes {
 		if len(class.Methods) > 0 && class.Name == mainClassName {
 			for _, m := range class.Methods {
@@ -415,6 +433,15 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	}
 	defer db.Close()
 
+	// Determine if spec needs database operations
+	needsDB := false
+	for _, inv := range invariants {
+		if strings.Contains(strings.ToLower(inv), "sqlite") {
+			needsDB = true
+			break
+		}
+	}
+
 	var prompt strings.Builder
 
 	// Layer 1: Static grammar exemplar from unified_exemplars table
@@ -520,14 +547,17 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	}
 
 	prompt.WriteString("VALIDATION & ERROR HANDLING:\n")
-	prompt.WriteString("You MUST validate all input arguments at the beginning of the function (before any database operation):\n")
-	prompt.WriteString("1. If a string parameter is empty or whitespace-only, return an error: `return 0, fmt.Errorf(\"invalid input: %%s is empty\", name)`\n")
-	prompt.WriteString("2. If a dbPath parameter contains path traversal (\"..\", \"/etc/\"), return `fmt.Errorf(\"path traversal blocked\")`\n")
-	prompt.WriteString("3. If a string parameter contains SQL injection patterns, return `fmt.Errorf(\"sql injection blocked\")`\n")
-	prompt.WriteString("4. Use Go-style error returns, not Java exceptions. Return `(result, error)` where error is nil on success.\n")
-	prompt.WriteString("Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.\n\n")
-
-	prompt.WriteString("IMPORTANT: You are generating Go code. Output ONLY the complete Go function body for '" + sig + "'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks. Use standard Go: `func (s *Type) Name(args) (returnType, error) { ... }` with proper error handling. Use `database/sql` for queries. Always return an error as the last return value.\n")
+	if needsDB {
+		prompt.WriteString("You MUST validate all input arguments at the beginning of the function (before any database operation):\n")
+		prompt.WriteString("1. If a string parameter is empty or whitespace-only, return an error: `return 0, fmt.Errorf(\"invalid input: %%s is empty\", name)`\n")
+		prompt.WriteString("2. If a dbPath parameter contains path traversal (\"..\", \"/etc/\"), return `fmt.Errorf(\"path traversal blocked\")`\n")
+		prompt.WriteString("3. If a string parameter contains SQL injection patterns, return `fmt.Errorf(\"sql injection blocked\")`\n")
+		prompt.WriteString("4. Use Go-style error returns, not Java exceptions. Return `(result, error)` where error is nil on success.\n")
+		prompt.WriteString("Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.\n\n")
+		prompt.WriteString("IMPORTANT: You are generating Go code. Output ONLY the complete Go function body for '" + sig + "'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks. Use standard Go: `func (s *Type) Name(args) (returnType, error) { ... }` with proper error handling. Use `database/sql` for queries. Always return an error as the last return value.\n")
+	} else {
+		prompt.WriteString("Output ONLY the complete Go function body for '" + sig + "'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks.\n")
+	}
 	prompt.WriteString("NOTE: Struct fields use PascalCase — access them as record.TxId (NOT record.txId). Use Sender, Receiver, Priority, Amount with capital letters.\n")
 
 	return prompt.String(), nil
