@@ -642,7 +642,11 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		}
 	} else {
 		prompt.WriteString("### LAYER 3: ALGORITHMIC/MEMORY EXEMPLARS\n")
-		rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope LIKE '%Memory%'")
+		scope := "%Memory%"
+		if targetLang == "zig" {
+			scope = "%Memory.Zig%"
+		}
+		rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope LIKE ?", scope)
 		if err == nil {
 			defer rows.Close()
 			for rows.Next() {
