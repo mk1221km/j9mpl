@@ -17,9 +17,9 @@ set env(GOFLAGS) "-mod=mod"
 proc cleanUpMethodBlock {revisedBlock methodSig} {
     set revisedBlock [string trim $revisedBlock]
     
-    # 1. Ensure method signature is present
-    if {$methodSig != "" && ![regexp -nocase {^\s*method\s+} $revisedBlock]} {
-        puts "  -> Prepending missing method signature..."
+    # 1. Ensure method signature is present (Go uses 'func', NetRexx uses 'method')
+    if {$methodSig != "" && ![regexp -nocase {^\s*(func|method)\s+} $revisedBlock]} {
+        puts "  -> Prepending missing function signature..."
         set revisedBlock "$methodSig\n$revisedBlock"
     }
     
@@ -68,7 +68,7 @@ proc cleanUpMethodBlock {revisedBlock methodSig} {
 # Navigate to project root directory
 cd $projectDir
 
-set isTest [string match "*Test.nrx" $nrxFile]
+set isTest [string match "*_test.go" $nrxFile]
 set runIncremental 0
 if {!$isTest && [file exists [file join $projectDir ".context" "methods.txt"]]} {
     set nrxContent ""
@@ -171,7 +171,7 @@ if {$runIncremental} {
                 puts "  -> Extracting block from code fences..."
                 set revisedBlock [lindex $parts 1]
                 puts "  -> Extracted block:\n$revisedBlock\n----------------------"
-                regsub -nocase {^(?:rexx|netrexx)?\n} $revisedBlock "" revisedBlock
+                regsub -nocase {^(?:rexx|netrexx|go)?\n} $revisedBlock "" revisedBlock
             } else {
                 puts "  -> Using raw model output..."
                 set revisedBlock $modelRaw
@@ -184,19 +184,26 @@ if {$runIncremental} {
             # Clean up the method block using our cleanUpMethodBlock helper
             set revisedBlock [cleanUpMethodBlock $revisedBlock $methodSig]
 
-            # Write revised block to errant_block_revised.txt
-            set revFile [file join $projectDir ".context" "errant_block_revised.txt"]
-            set fd [open $revFile w]
-            puts -nonewline $fd $revisedBlock
+            # For Go target: rebuild the function body from scratch instead of patching
+            # Read the full source file
+            set fd [open $nrxFile r]
+            set fullSource [read $fd]
             close $fd
 
-            # Patch the source file
-            set patchStatus [catch {exec bin/patch_source $nrxFile $origFile $revFile} patchResult]
-            puts $patchResult
-            if {$patchStatus != 0} {
-                puts stderr "\[ERROR\] Failed to patch source file: $patchResult"
+            # Replace the SKELETON marker line(s) with the generated function body
+            set marker "SKELETON_$method"
+            set pattern "// $marker"
+            if {[string first $pattern $fullSource] >= 0} {
+                set fullSource [string map [list $pattern $revisedBlock] $fullSource]
+            } else {
+                puts stderr "\[ERROR\] SKELETON marker '$pattern' not found in source file."
                 exit 1
             }
+
+            set fd [open $nrxFile w]
+            puts -nonewline $fd $fullSource
+            close $fd
+            puts "  -> Source file patched successfully."
             puts "--- SOURCE FILE CONTENT AFTER PATCHING $method ---"
             set fd_check [open $nrxFile r]
             puts [read $fd_check]
@@ -281,7 +288,7 @@ if {$runIncremental} {
                     if {[regexp {Assertion Failure in (\w+):} $sandboxResult match failedMethod]} {
                         puts "  -> Detected fuzzer assertion failure in method '$failedMethod'."
                         
-                        set prodNrx [string map {Test.nrx .nrx} $nrxFile]
+                        set prodNrx [string map {_test.go .go} $nrxFile]
                         if {[file exists $prodNrx]} {
                             puts "  -> Extracting method '$failedMethod' from production file: $prodNrx"
                             set fd [open $prodNrx r]
@@ -367,7 +374,7 @@ if {$runIncremental} {
                             set parts [split $normalizedRaw "\u0000"]
                             if {[llength $parts] >= 3} {
                                 set revisedBlock [lindex $parts 1]
-                                regsub -nocase {^(?:rexx|netrexx)?\n} $revisedBlock "" revisedBlock
+                                regsub -nocase {^(?:rexx|netrexx|go)?\n} $revisedBlock "" revisedBlock
                             } else {
                                 set revisedBlock $modelRaw
                             }
@@ -456,7 +463,7 @@ if {$runIncremental} {
             puts "  -> Extracting block from code fences..."
             set revisedBlock [lindex $parts 1]
             puts "  -> Extracted block:\n$revisedBlock\n----------------------"
-            regsub -nocase {^(?:rexx|netrexx)?\n} $revisedBlock "" revisedBlock
+            regsub -nocase {^(?:rexx|netrexx|go)?\n} $revisedBlock "" revisedBlock
         } else {
             puts "  -> Using raw model output..."
             set revisedBlock $modelRaw

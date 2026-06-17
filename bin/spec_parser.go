@@ -244,11 +244,16 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 			for _, field := range class.Fields {
 				parts := strings.Split(field, "(")
 				fName := strings.TrimSpace(parts[0])
+				if fName == "" {
+					continue
+				}
 				fType := "string"
 				if len(parts) > 1 {
 					fType = goType(strings.TrimSpace(strings.Trim(parts[1], "()")))
 				}
-				sb.WriteString(fmt.Sprintf("\t%s %s\n", fName, fType))
+				// Uppercase first letter for Go convention (exported fields)
+		fNameUpper := strings.ToUpper(fName[:1]) + fName[1:]
+		sb.WriteString(fmt.Sprintf("\t%s %s\n", fNameUpper, fType))
 			}
 			sb.WriteString("}\n")
 		}
@@ -259,19 +264,7 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 	for _, class := range spec.Classes {
 		if len(class.Methods) > 0 && class.Name == mainClassName {
 			for _, m := range class.Methods {
-				goArgs := convertArgsToGo(m.Args)
-				retClause := ""
-				if m.Returns != "" {
-					retClause = " " + m.Returns
-				}
-
-				sb.WriteString(fmt.Sprintf("\n// %s implements %s\nfunc (s *%s) %s(%s) %s {\n", m.Name, m.Name, mainClassName, m.Name, goArgs, retClause))
-				sb.WriteString(fmt.Sprintf("\t// SKELETON_%s\n", m.Name))
-				if strings.TrimSpace(retClause) == "" {
-					sb.WriteString("}\n")
-				} else {
-					sb.WriteString(fmt.Sprintf("\treturn %s{}\n}\n", retClause))
-				}
+				sb.WriteString(fmt.Sprintf("\n// SKELETON_%s\n", m.Name))
 			}
 		}
 	}
@@ -301,6 +294,10 @@ func goType(netrexxType string) string {
 }
 
 func convertArgsToGo(args string) string {
+	if args == "" {
+		return ""
+	}
+	// Handle spec format like "dbPath: String" or "dbPath = String"
 	parts := strings.Split(args, ",")
 	var goParts []string
 	for _, p := range parts {
@@ -308,15 +305,21 @@ func convertArgsToGo(args string) string {
 		if p == "" {
 			continue
 		}
-		sub := strings.SplitN(p, "=", 2)
-		if len(sub) == 2 {
-			name := strings.TrimSpace(sub[0])
-			typ := strings.TrimSpace(sub[1])
-			goParts = append(goParts, fmt.Sprintf("%s %s", name, goType(typ)))
+		name, typ := "", ""
+		if strings.Contains(p, "=") {
+			sub := strings.SplitN(p, "=", 2)
+			name = strings.TrimSpace(sub[0])
+			typ = strings.TrimSpace(sub[1])
+		} else if strings.Contains(p, ":") {
+			sub := strings.SplitN(p, ":", 2)
+			name = strings.TrimSpace(sub[0])
+			typ = strings.TrimSpace(sub[1])
 		} else {
 			// No type: assume string
-			goParts = append(goParts, fmt.Sprintf("%s string", strings.TrimSpace(sub[0])))
+			goParts = append(goParts, fmt.Sprintf("%s string", strings.TrimSpace(p)))
+			continue
 		}
+		goParts = append(goParts, fmt.Sprintf("%s %s", name, goType(typ)))
 	}
 	return strings.Join(goParts, ", ")
 }
@@ -361,7 +364,7 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 
 	// Layer 3: Exemplar Blocks (from unified_exemplars table for SQLite/JDBC references)
 	prompt.WriteString("### LAYER 3: JDBC/SQLITE REFERENCE EXEMPLARS\n")
-	rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope = 'Database.SQLite'")
+	rows, err := db.Query("SELECT few_shot_prompt_block FROM unified_exemplars WHERE domain_scope LIKE '%SQLite%'")
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -403,22 +406,7 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	prompt.WriteString("4. Use Go-style error returns, not Java exceptions. Return `(result, error)` where error is nil on success.\n")
 	prompt.WriteString("Ensure these checks are at the very beginning of each method body and are NOT caught by any internal try-catch blocks that handle database operations.\n\n")
 
- 	prompt.WriteString("IMPORTANT INSTRUCTIONS FOR NETREXX DIALECT:\n")
-	prompt.WriteString("1. Variable declarations MUST follow the NetRexx syntax: 'varName = Type initialValue' (e.g. 'dbPath = String null', 'avg = Rexx 0', 'count = int 0'). Do NOT use Java-style declarations like 'Type varName = value' or 'String dbPath = null' as they will cause syntax errors.\n")
-	prompt.WriteString("2. NetRexx methods do NOT have a terminating 'end' keyword at the method level. Only inner blocks like 'do', 'loop', and 'select' should be closed with 'end'. Do NOT append a trailing 'end' at the end of the method body.\n")
-	prompt.WriteString("3. Checked exceptions (like Exception, SQLException) can ONLY be caught inside a 'do ... catch' block if the body of that 'do' block calls a method that is explicitly declared to throw/signal that exception. If no such method is called, catching checked exceptions is a compile-time error. For 'main', do not catch checked exceptions, or just catch 'RuntimeException' / 'Throwable', or avoid catch blocks entirely.\n")
-	prompt.WriteString("4. You MUST guard all database connection logic against null or empty/placeholder dbPath values. Since this method takes a 'dbPath = String' parameter, you MUST check if it is valid. To ensure short-circuiting and avoid NullPointerExceptions, use nested checks: `if dbPath \\== null then if dbPath \\== \"null\" then do` before connecting via JDBC, otherwise SQLite JDBC will physically create a database file named 'null' in the current working directory. The validation checks above should be run first.\n")
-	prompt.WriteString("5. Mismatched block and catch syntax: (a) Never write 'finally do' on the same line. If you need a try-catch block inside a finally clause, place 'finally' on its own line and start the 'do' block on the next line. (b) Every catch clause MUST follow NetRexx syntax: 'catch ex = ExceptionType' (e.g. 'catch ex = SQLException' or 'catch ex = Exception'). Never write 'catch Exception ex' or 'catch ex' without a type.\n")
-	prompt.WriteString("6. Numeric Types and Literals: Literals with decimal points (e.g. 0.0) are treated as float by default. To declare a primitive double, use `varName = double 0` or cast it like `varName = double 0.0`. Prefer primitive `double` and `int` over their boxed object wrapper classes `java.lang.Double` or `java.lang.Integer`. To check if a double is infinite or NaN, use `Double.isInfinite(val)` or `Double.isNaN(val)` instead of calling methods on a wrapper object.\n")
-	prompt.WriteString("7. Backslash in String Literals: To write a literal backslash inside a NetRexx string literal, you MUST double it (e.g. write 'C:\\\\\\\\Windows' or '\\\\\\\\' in code to represent a backslash). A single backslash followed by a letter (like '\\\\W') is an invalid escape sequence and will cause translation to fail.\n")
-	prompt.WriteString("8. Object Instantiation: Do NOT use the `new` keyword to instantiate classes. In NetRexx, you instantiate a class by calling its constructor directly (e.g. use `record = MetricRecord()` or `record = MetricRecord(\"arg1\", \"arg2\")` instead of `record = new MetricRecord()`).\n")
-	prompt.WriteString("9. Accessing DTO fields: DTO helper classes (like `MetricRecord` or `TransactionRecord`) expose public properties directly. You MUST access them directly by name without Java-style getter/setter methods (e.g. use `record.txId` or `record.amount` instead of `record.getId()` or `record.getAmount()`).\n")
-	prompt.WriteString("10. Null Check Reference Comparison: ALWAYS use the strict identity operators `== null` and `\\== null` (double equals) when checking for null references. Do NOT use `=` or `\\=` for null checking against Java null, as value comparisons against null can throw NullPointerExceptions.\n")
-	prompt.WriteString("11. Non-Short-Circuiting Operators: NetRexx logical operators `|` and `&` do NOT short-circuit (they always evaluate both sides). Therefore, you MUST NOT combine null-checks and member/method calls in a single expression (e.g. do NOT write `if record == null | record.timestamp == null`). Instead, check if the object itself is null first, and only check its fields or call its methods in separate, subsequent statements.\n")
-	prompt.WriteString("12. String methods vs Rexx methods: Properties or parameters declared as `String` are Java `java.lang.String` objects. You MUST use Java String methods (e.g., `val.trim().length() == 0` for empty/whitespace checks, `val.indexOf(substring) >= 0` to check for containment, `val.startsWith(prefix)` to check prefix) on them. Do NOT use Rexx-specific methods like `.pos()`, `.datatype()`, `.strip()`, `.left()`, `.stripspace()`, or `.upper()` on `String` types. If you want to use Rexx methods, you must first cast/convert them to Rexx (e.g., `Rexx(val)`).\n")
-	prompt.WriteString("13. Loops: In NetRexx, loops MUST use the `loop` keyword, not `do` (e.g. use `loop pattern over patterns` instead of `do for pattern over patterns` or `do pattern over patterns`). Closing a loop block must be done with `end`.\n")
-	prompt.WriteString("14. Unique exception names in catch blocks: In NetRexx, exception variables in catch blocks have method scope. If a method contains multiple catch blocks, you MUST use different variable names (e.g., `catch exNum = NumberFormatException`, `catch exSql = SQLException`) to avoid compiler errors about type mismatch or duplicate declarations.\n")
-	prompt.WriteString("Output ONLY the complete NetRexx method block starting with '" + sig + "'. Do not include the enclosing class, package, or imports. Do not wrap in markdown code blocks.\n")
+	prompt.WriteString("IMPORTANT: You are generating Go code. Output ONLY the complete Go function body for '" + sig + "'. Do not include the enclosing struct definition, package, or imports. Do not wrap in markdown code blocks. Use standard Go: `func (s *Type) Name(args) (returnType, error) { ... }` with proper error handling. Use `database/sql` for queries. Always return an error as the last return value.\n")
 
 	return prompt.String(), nil
 }
@@ -463,7 +451,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	skeletonFile := filepath.Join(projectDir, "generated", mainClassName+".nrx")
+	skeletonFile := filepath.Join(projectDir, "generated", mainClassName+".go")
 	skipWrite := false
 	if existingContent, readErr := os.ReadFile(skeletonFile); readErr == nil {
 		if !strings.Contains(string(existingContent), "SKELETON_") {
