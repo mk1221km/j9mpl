@@ -374,6 +374,40 @@ func convertArgsToGo(args string) string {
 	return strings.Join(goParts, ", ")
 }
 
+type CoverageGap struct {
+	startLine  int
+	endLine    int
+	stmtCount  int
+	sourceText string
+}
+
+func queryCoverageGaps(dbPath string, methodName string) []CoverageGap {
+	var gaps []CoverageGap
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return gaps
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT start_line, end_line, statement_count, unexecuted_source_text FROM generated_coverage_gaps WHERE method_name=? ORDER BY start_line", methodName)
+	if err != nil {
+		return gaps
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var g CoverageGap
+		var src sql.NullString
+		if err := rows.Scan(&g.startLine, &g.endLine, &g.stmtCount, &src); err == nil {
+			if src.Valid {
+				g.sourceText = src.String
+			}
+			gaps = append(gaps, g)
+		}
+	}
+	return gaps
+}
+
 func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, invariants []string, report string, classes []SpecClass) (string, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -471,6 +505,19 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		prompt.WriteString(fmt.Sprintf("- %s\n", inv))
 	}
 	prompt.WriteString("\n")
+
+	// Inject coverage gaps for this method if any exist
+	coverageGaps := queryCoverageGaps(dbPath, method.Name)
+	if len(coverageGaps) > 0 {
+		prompt.WriteString("### COVERAGE GAPS (unexecuted code blocks from fuzzing):\n")
+		for _, gap := range coverageGaps {
+			prompt.WriteString(fmt.Sprintf("Lines %d-%d (%d statements) — NEVER EXECUTED:\n", gap.startLine, gap.endLine, gap.stmtCount))
+			if gap.sourceText != "" {
+				prompt.WriteString(gap.sourceText + "\n")
+			}
+		}
+		prompt.WriteString("REFACTORING INVARIANT: Ensure these blocks are reachable under test, or remove dead code.\n\n")
+	}
 
 	prompt.WriteString("VALIDATION & ERROR HANDLING:\n")
 	prompt.WriteString("You MUST validate all input arguments at the beginning of the function (before any database operation):\n")
