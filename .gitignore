@@ -70,6 +70,12 @@ generated/testdata/
 !generated/ringbuffer/*.py
 !generated/ringbuffer/*.js
 !generated/ringbuffer/*.ml
+# Allow source files in metrics and router (blocked by generated/m* and generated/r*)
+!generated/metrics/
+!generated/metrics/*.py
+!generated/router/
+!generated/router/*.py
+
 # Keep binaries and intermediate artifacts in ringbuffer ignored
 generated/ringbuffer/ring
 generated/ringbuffer/ring-zig
