@@ -303,8 +303,8 @@ func GenerateGoSkeleton(dbPath string, spec ParsedSpec, mainClassName string) (s
 		}
 	}
 
-	// Main struct with method stubs
-	sb.WriteString(fmt.Sprintf("\ntype %s struct{}\n", mainClassName))
+	// Main struct with method stubs — includes optional db connection handle
+	sb.WriteString(fmt.Sprintf("\ntype %s struct {\n\tdb *sql.DB\n}\n", mainClassName))
 	for _, class := range spec.Classes {
 		if len(class.Methods) > 0 && class.Name == mainClassName {
 			for _, m := range class.Methods {
