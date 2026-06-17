@@ -671,13 +671,9 @@ func main() {
 	// Generate type-driven fuzz seeds from DTO class fields
 	seedsFile := filepath.Join(projectDir, "generated", "seeds_test.go")
 	var seedsSb strings.Builder
-	seedsSb.WriteString("package comfactoryrouting\n\nimport \"testing\"\n\n")
+	seedsSb.WriteString("package comfactoryrouting\n\nimport \"math\"\n\n")
 	seedsSb.WriteString("// Auto-generated seed corpus via type-driven boundary induction.\n")
 	seedsSb.WriteString("// Each field is tested with empty, path-traversal, SQL-injection, and boundary values.\n\n")
-	seedsSb.WriteString("func init() {\n")
-	seedsSb.WriteString("\t// Seeds are loaded via transaction_router_test.go's f.Add() calls.\n")
-	seedsSb.WriteString("\t// This file exists to ensure seeds_test.go is a valid Go file.\n")
-	seedsSb.WriteString("}\n\n")
 	seedsSb.WriteString("// SeedCorpusData returns boundary test values for each field type.\n")
 	seedsSb.WriteString("// Used by the fuzz harness to construct targeted corpus entries.\n")
 	seedsSb.WriteString("func SeedCorpusData() map[string][]interface{} {\n")

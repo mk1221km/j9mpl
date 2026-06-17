@@ -1,14 +1,9 @@
 package comfactoryrouting
 
-import "testing"
+import "math"
 
 // Auto-generated seed corpus via type-driven boundary induction.
 // Each field is tested with empty, path-traversal, SQL-injection, and boundary values.
-
-func init() {
-	// Seeds are loaded via transaction_router_test.go's f.Add() calls.
-	// This file exists to ensure seeds_test.go is a valid Go file.
-}
 
 // SeedCorpusData returns boundary test values for each field type.
 // Used by the fuzz harness to construct targeted corpus entries.

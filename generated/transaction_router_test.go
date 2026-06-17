@@ -5,21 +5,59 @@ import (
 )
 
 func FuzzRouteTransaction(f *testing.F) {
-	// Seed corpus: valid baseline
+	// Baseline valid corpus seed
 	f.Add("test.db", "tx-001", "alice", "bob", 500.0, "low")
-	// Seed: empty receiver (targets coverage gap line 99-101)
-	f.Add("test.db", "tx-002", "charlie", "", 200.0, "high")
-	// Seed: empty priority (targets coverage gap line 102-104)
-	f.Add("test.db", "tx-003", "dave", "eve", 100.0, "")
-	// Seed: empty dbPath (targets coverage gap line 90-92)
-	f.Add("", "tx-004", "frank", "grace", 50.0, "low")
-	// Seed: path traversal in dbPath (targets coverage gap line 107-109)
-	f.Add("../../etc/passwd", "tx-005", "henry", "ivy", 300.0, "medium")
-	f.Add("/etc/shadow", "tx-006", "jack", "kate", 400.0, "high")
-	// Seed: SQL injection patterns in string fields
-	f.Add("test.db", "'; DROP TABLE routing_rules; --", "liam", "mia", 150.0, "low")
-	f.Add("test.db", "noah", "' OR '1'='1", "olivia", 250.0, "high")
-	f.Add("test.db", "peter", "quinn", "select * from users", 350.0, "medium")
+
+	// Auto-generated seeds from type-driven boundary induction
+	seeds := SeedCorpusData()
+	type seedCase struct {
+		name   string
+		values []interface{}
+	}
+	var seedCases []seedCase
+	for name, vals := range seeds {
+		seedCases = append(seedCases, seedCase{name, vals})
+	}
+
+	// Map seed names to fuzz parameter positions
+	// f.Add(dbPath, txId, sender, receiver string, amount float64, priority string)
+	for _, sc := range seedCases {
+		dbPath := "test.db"
+		txId := "tx-auto"
+		sender := "auto-sender"
+		receiver := "auto-receiver"
+		amount := 100.0
+		priority := "normal"
+
+		// Parse seed name to determine which field to substitute
+		switch sc.name {
+		case "txId_empty", "txId_path_traversal", "txId_sql_injection":
+			if len(sc.values) > 0 {
+				txId = sc.values[0].(string)
+			}
+		case "sender_path_traversal", "sender_sql_injection":
+			if len(sc.values) > 0 {
+				sender = sc.values[0].(string)
+			}
+		case "receiver_empty", "receiver_path_traversal", "receiver_sql_injection":
+			if len(sc.values) > 0 {
+				receiver = sc.values[0].(string)
+			} else {
+				receiver = ""
+			}
+		case "amount_negative", "amount_nan":
+			if len(sc.values) > 0 {
+				amount = sc.values[0].(float64)
+			}
+		case "priority_empty", "priority_path_traversal", "priority_sql_injection":
+			if len(sc.values) > 0 {
+				priority = sc.values[0].(string)
+			} else {
+				priority = ""
+			}
+		}
+		f.Add(dbPath, txId, sender, receiver, amount, priority)
+	}
 
 	f.Fuzz(func(t *testing.T, dbPath, txId, sender, receiver string, amount float64, priority string) {
 		router := TransactionRouter{}
