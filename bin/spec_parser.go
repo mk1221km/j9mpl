@@ -668,6 +668,50 @@ func main() {
 	}
 	fmt.Printf("[INFO] Methods list written to: %s\n", methodsFile)
 
+	// Generate type-driven fuzz seeds from DTO class fields
+	seedsFile := filepath.Join(projectDir, "generated", "seeds_test.go")
+	var seedsSb strings.Builder
+	seedsSb.WriteString("package comfactoryrouting\n\nimport \"testing\"\n\n")
+	seedsSb.WriteString("// Auto-generated seed corpus via type-driven boundary induction.\n")
+	seedsSb.WriteString("// Each field is tested with empty, path-traversal, SQL-injection, and boundary values.\n\n")
+	seedsSb.WriteString("func init() {\n")
+	seedsSb.WriteString("\t// Seeds are loaded via transaction_router_test.go's f.Add() calls.\n")
+	seedsSb.WriteString("\t// This file exists to ensure seeds_test.go is a valid Go file.\n")
+	seedsSb.WriteString("}\n\n")
+	seedsSb.WriteString("// SeedCorpusData returns boundary test values for each field type.\n")
+	seedsSb.WriteString("// Used by the fuzz harness to construct targeted corpus entries.\n")
+	seedsSb.WriteString("func SeedCorpusData() map[string][]interface{} {\n")
+	seedsSb.WriteString("\treturn map[string][]interface{}{\n")
+	for _, class := range spec.Classes {
+		if len(class.Methods) == 0 {
+			for _, field := range class.Fields {
+				parts := strings.Split(field, "(")
+				if len(parts) < 1 {
+					continue
+				}
+				fName := strings.TrimSpace(parts[0])
+				fType := "string"
+				if len(parts) > 1 {
+					fType = goType(strings.TrimSpace(strings.Trim(parts[1], "()")))
+				}
+				seedsSb.WriteString(fmt.Sprintf("\t\t// %s (%s)\n", fName, fType))
+				seedsSb.WriteString(fmt.Sprintf("\t\t\"%s_empty\": {},\n", fName))
+				switch fType {
+				case "string":
+					seedsSb.WriteString(fmt.Sprintf("\t\t\"%s_path_traversal\": {\"../../etc/passwd\"},\n", fName))
+					seedsSb.WriteString(fmt.Sprintf("\t\t\"%s_sql_injection\": {\"'; DROP TABLE --\"},\n", fName))
+				case "float64":
+					seedsSb.WriteString(fmt.Sprintf("\t\t\"%s_negative\": {-1.0},\n", fName))
+					seedsSb.WriteString(fmt.Sprintf("\t\t\"%s_nan\": {math.NaN()},\n", fName))
+				}
+			}
+		}
+	}
+	seedsSb.WriteString("\t}\n")
+	seedsSb.WriteString("}\n")
+	os.WriteFile(seedsFile, []byte(seedsSb.String()), 0644)
+	fmt.Printf("[INFO] Fuzz seeds written to: %s\n", seedsFile)
+
 	// Build fallback synthesis prompt just in case
 	fallbackPrompt, err := BuildMethodPrompt(dbPath, mainClassName, SpecMethod{
 		Name:         "all",
