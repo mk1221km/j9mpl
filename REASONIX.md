@@ -833,3 +833,221 @@ This change aligns the generation pipeline completely with your core systems doc
 ---
 
 Shall we proceed by drafting the Rascal logic to automate the relational insertion of the grammar invariants and JDBC templates directly into the SQLite database engine?
+- Operational Strategy: Runtime Coverage Instrumentation and Feedback Closure
+
+The decision to prioritize **runtime coverage metrics** over upstream formal specification schema validation represents a profound alignment with empirical software engineering. While formalizing the specification metadata (e.g., machine-parseable pre- and post-conditions) hardens the compile-time ports, it remains a purely static verification method. It cannot mathematically guarantee that the synthesized logic within the function bodies is thoroughly exercised under stress, nor can it detect unexecuted branch alternatives.
+
+By instrumenting coverage-guided profiling natively via the Go toolchain, the software plant shifts from simple error trapping to **quantifiable behavioral verification**. Capturing execution patterns at raw iron velocity allows the local orchestration layer to identify exactly which logical paths remain speculative or unreached, closing the automated feedback loop from mutation fuzzing directly back to the generative prompt compiler.
+
+---
+
+## 1. The Mechanics of the Native Coverage Interface
+
+The native Go toolchain provides low-overhead basic block instrumentation that integrates seamlessly with coverage-guided mutation fuzzing. Rather than relying on intrusive virtual machine hooks or heavy bytecode manipulation libraries, the local operating system runtime captures block execution counts directly within the CPU cache lines.
+
+To initialize the coverage tracking loop alongside the fuzzing engine, the Tcl supervisor alters the verification execution block:
+
+```bash
+go test -fuzz=FuzzRouteTransaction -fuzztime=10s -coverprofile=.context/coverage.out ./generated/...
+
+```
+
+### The Geometry of the Profile Asset
+
+Upon execution termination, the toolchain writes a deterministic, line-oriented text block to `.context/coverage.out`. The syntax follows an invariant structural notation:
+
+```
+mode: set
+transformation-factory/generated/TransactionRouter.go:82.80,94.2 3 1
+transformation-factory/generated/TransactionRouter.go:96.45,102.12 2 0
+
+```
+
+The data fields map directly to physical source geography:
+
+1. **Source Coordinate:** `filename.go:start_line.start_col,end_line.end_col`
+2. **Statement Count:** The number of primitive statements enclosed within the block boundary.
+3. **Execution Count:** The exact number of times the CPU traversed this specific execution path during the fuzzing pass. A value of `0` denotes an unexecuted logic branch—a structural vulnerability in the soft core.
+
+---
+
+## 2. Relational Ingestion of Coverage Gaps
+
+In adherence to the **Logic-as-Data architecture**, these raw coverage gaps cannot remain scattered inside text files. They must be internalized by the local database substrate to serve as empirical facts for subsequent generation cycles.
+
+The local Tcl supervisor processes `.context/coverage.out` line-by-line, isolating records where the execution count field equals zero. It converts the abstract line coordinates into concrete source code fragments and inserts them into a specialized tracking ledger inside `project_context.db`:
+
+```sql
+-- Schema for Empirical Coverage Trackers
+CREATE TABLE IF NOT EXISTS generated_coverage_gaps (
+    file_path TEXT NOT NULL,
+    method_name TEXT NOT NULL,
+    start_line INTEGER NOT NULL,
+    end_line INTEGER NOT NULL,
+    statement_count INTEGER NOT NULL,
+    unexecuted_source_text TEXT,
+    identified_at INTEGER NOT NULL,
+    PRIMARY KEY (file_path, start_line)
+);
+
+```
+
+To populate the `unexecuted_source_text` field dynamically, a local file utility reads the generated source file, extracts the slice bounded by `start_line` and `end_line`, and captures the exact code string that escaped fuzzing traversal.
+
+---
+
+## 3. Closing the Synthesis Loop: Coverage-Informed Prompt Enrichment
+
+Once coverage gaps are institutionalized within the relational ledger, the factory loop automatically handles logic optimization during repair iterations.
+
+When `bin/self_correct_loop.tcl` prepares a prompt window to remediate a method or handle code hardening, the prompt builder checks the `generated_coverage_gaps` table for matching method references. If a gap exists, the local toolchain injects the exact unexecuted code string directly into the prompt payload under a strict operational constraint:
+
+```
+CRITICAL COVERAGE GAP IDENTIFIED:
+The following execution path within your previous output was never reached during mutation fuzzing:
+
+```
+
+```go
+if accountType == "restricted" && amount > 100000 {
+    return false, errors.New("unauthorized institutional volume")
+}
+
+```
+
+```
+REFACTORING INVARIANT:
+You must rewrite the internal logic or provide structural assertions ensuring this conditional branch is deterministically tested and reached, or verify if the enclosing preconditions render this code dead.
+
+```
+
+This interaction transforms the synthesis pipeline into a self-hardening feedback loop:
+
+```
+[Method Generation] ──► [go build] ──► [go test -fuzz + -coverprofile]
+          ▲                                       │
+          │ (Coverage Informed Prompt)            ▼
+[DeepSeek Prompt Builder] ◄── [SQLite Ledger] ◄── [Tcl Gap Extractor (Count == 0)]
+
+```
+
+The model's attention weights are mechanically forced to confront its own unexecuted logic paths. It cannot simply output generic code blocks that satisfy basic syntax rules; it must adapt the interior architecture of the subroutine to satisfy the dynamic test patterns enforced by the local fuzzer.
+
+---
+
+## 4. Operational Invariants for the Current Session
+
+With the repository state pinned cleanly at commit `278b74f` (separating `TransactionRouter.go` from `main.go`), the baseline is perfectly configured to absorb this coverage loop infrastructure. The local static files require zero structural modification to begin tracking execution profiles.
+
+To prepare the workspace for the dynamic injection of the coverage tracking engine, the configuration parameters inside the local database ledger must be synchronized.
+
+Should we proceed by writing the native Tcl parser logic to decode the `.coverprofile` coordinate fields, or execute a baseline fuzzing pass to capture the initial raw coverage data array from your current implementation first?
+- Operational Strategy: Runtime Coverage Instrumentation and Feedback Closure
+
+The decision to prioritize **runtime coverage metrics** over upstream formal specification schema validation represents a profound alignment with empirical software engineering. While formalizing the specification metadata (e.g., machine-parseable pre- and post-conditions) hardens the compile-time ports, it remains a purely static verification method. It cannot mathematically guarantee that the synthesized logic within the function bodies is thoroughly exercised under stress, nor can it detect unexecuted branch alternatives.
+
+By instrumenting coverage-guided profiling natively via the Go toolchain, the software plant shifts from simple error trapping to **quantifiable behavioral verification**. Capturing execution patterns at raw iron velocity allows the local orchestration layer to identify exactly which logical paths remain speculative or unreached, closing the automated feedback loop from mutation fuzzing directly back to the generative prompt compiler.
+
+---
+
+## 1. The Mechanics of the Native Coverage Interface
+
+The native Go toolchain provides low-overhead basic block instrumentation that integrates seamlessly with coverage-guided mutation fuzzing. Rather than relying on intrusive virtual machine hooks or heavy bytecode manipulation libraries, the local operating system runtime captures block execution counts directly within the CPU cache lines.
+
+To initialize the coverage tracking loop alongside the fuzzing engine, the Tcl supervisor alters the verification execution block:
+
+```bash
+go test -fuzz=FuzzRouteTransaction -fuzztime=10s -coverprofile=.context/coverage.out ./generated/...
+
+```
+
+### The Geometry of the Profile Asset
+
+Upon execution termination, the toolchain writes a deterministic, line-oriented text block to `.context/coverage.out`. The syntax follows an invariant structural notation:
+
+```
+mode: set
+transformation-factory/generated/TransactionRouter.go:82.80,94.2 3 1
+transformation-factory/generated/TransactionRouter.go:96.45,102.12 2 0
+
+```
+
+The data fields map directly to physical source geography:
+
+1. **Source Coordinate:** `filename.go:start_line.start_col,end_line.end_col`
+2. **Statement Count:** The number of primitive statements enclosed within the block boundary.
+3. **Execution Count:** The exact number of times the CPU traversed this specific execution path during the fuzzing pass. A value of `0` denotes an unexecuted logic branch—a structural vulnerability in the soft core.
+
+---
+
+## 2. Relational Ingestion of Coverage Gaps
+
+In adherence to the **Logic-as-Data architecture**, these raw coverage gaps cannot remain scattered inside text files. They must be internalized by the local database substrate to serve as empirical facts for subsequent generation cycles.
+
+The local Tcl supervisor processes `.context/coverage.out` line-by-line, isolating records where the execution count field equals zero. It converts the abstract line coordinates into concrete source code fragments and inserts them into a specialized tracking ledger inside `project_context.db`:
+
+```sql
+-- Schema for Empirical Coverage Trackers
+CREATE TABLE IF NOT EXISTS generated_coverage_gaps (
+    file_path TEXT NOT NULL,
+    method_name TEXT NOT NULL,
+    start_line INTEGER NOT NULL,
+    end_line INTEGER NOT NULL,
+    statement_count INTEGER NOT NULL,
+    unexecuted_source_text TEXT,
+    identified_at INTEGER NOT NULL,
+    PRIMARY KEY (file_path, start_line)
+);
+
+```
+
+To populate the `unexecuted_source_text` field dynamically, a local file utility reads the generated source file, extracts the slice bounded by `start_line` and `end_line`, and captures the exact code string that escaped fuzzing traversal.
+
+---
+
+## 3. Closing the Synthesis Loop: Coverage-Informed Prompt Enrichment
+
+Once coverage gaps are institutionalized within the relational ledger, the factory loop automatically handles logic optimization during repair iterations.
+
+When `bin/self_correct_loop.tcl` prepares a prompt window to remediate a method or handle code hardening, the prompt builder checks the `generated_coverage_gaps` table for matching method references. If a gap exists, the local toolchain injects the exact unexecuted code string directly into the prompt payload under a strict operational constraint:
+
+```
+CRITICAL COVERAGE GAP IDENTIFIED:
+The following execution path within your previous output was never reached during mutation fuzzing:
+
+```
+
+```go
+if accountType == "restricted" && amount > 100000 {
+    return false, errors.New("unauthorized institutional volume")
+}
+
+```
+
+```
+REFACTORING INVARIANT:
+You must rewrite the internal logic or provide structural assertions ensuring this conditional branch is deterministically tested and reached, or verify if the enclosing preconditions render this code dead.
+
+```
+
+This interaction transforms the synthesis pipeline into a self-hardening feedback loop:
+
+```
+[Method Generation] ──► [go build] ──► [go test -fuzz + -coverprofile]
+          ▲                                       │
+          │ (Coverage Informed Prompt)            ▼
+[DeepSeek Prompt Builder] ◄── [SQLite Ledger] ◄── [Tcl Gap Extractor (Count == 0)]
+
+```
+
+The model's attention weights are mechanically forced to confront its own unexecuted logic paths. It cannot simply output generic code blocks that satisfy basic syntax rules; it must adapt the interior architecture of the subroutine to satisfy the dynamic test patterns enforced by the local fuzzer.
+
+---
+
+## 4. Operational Invariants for the Current Session
+
+With the repository state pinned cleanly at commit `278b74f` (separating `TransactionRouter.go` from `main.go`), the baseline is perfectly configured to absorb this coverage loop infrastructure. The local static files require zero structural modification to begin tracking execution profiles.
+
+To prepare the workspace for the dynamic injection of the coverage tracking engine, the configuration parameters inside the local database ledger must be synchronized.
+
+Should we proceed by writing the native Tcl parser logic to decode the `.coverprofile` coordinate fields, or execute a baseline fuzzing pass to capture the initial raw coverage data array from your current implementation first?

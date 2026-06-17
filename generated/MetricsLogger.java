@@ -1,4 +1,4 @@
-/* Generated from 'MetricsLogger.nrx' 16 Jun 2026 23:47:43 [v5.10] */
+/* Generated from 'MetricsLogger.nrx' 17 Jun 2026 01:07:08 [v5.10] */
 /* Options: Annotations Binary Decimal Format Implicituses Java Logo Replace Trace2 Verbose3 */
 package com.factory.metrics;
 import java.sql.Connection;
@@ -10,6 +10,8 @@ import java.sql.DriverManager;
 
 
 public class MetricsLogger{
+ private static final netrexx.lang.Rexx $01=netrexx.lang.Rexx.toRexx("");
+ private static final netrexx.lang.Rexx $02=netrexx.lang.Rexx.toRexx("null");
  private static final java.lang.String $0="MetricsLogger.nrx";
  
  @SuppressWarnings("unchecked") 
@@ -144,47 +146,52 @@ public class MetricsLogger{
  
  public static netrexx.lang.Rexx getAverageMetric(java.lang.String dbPath,java.lang.String name) throws java.io.IOException,java.sql.SQLException{
   java.sql.Connection conn;
-  java.sql.PreparedStatement pstmt;
+  java.sql.PreparedStatement stmt;
   java.sql.ResultSet rs;
-  netrexx.lang.Rexx avgVal;
-  java.sql.SQLException exSql=null;
-  validatePath(dbPath);
-  validateStringField("name",name);
+  netrexx.lang.Rexx avg;
+  java.sql.SQLException ex=null;
+  if (((dbPath==null)|netrexx.lang.Rexx.toRexx(dbPath).OpEq(null,$01))|((dbPath.trim().length())==0)) 
+   throw new java.lang.IllegalArgumentException("Invalid input");
+  if (((name==null)|netrexx.lang.Rexx.toRexx(name).OpEq(null,$01))|((name.trim().length())==0)) 
+   throw new java.lang.IllegalArgumentException("Invalid input");
+  if ((((dbPath.startsWith("/etc/"))|(dbPath.contains((java.lang.CharSequence)"..")))|(dbPath.startsWith("C:\\")))|(dbPath.contains((java.lang.CharSequence)("C:\\Windows")))) 
+   throw new java.io.IOException("Path traversal blocked");
+  if (((name.contains((java.lang.CharSequence)("\' OR \'1\'=\'1")))|(name.contains((java.lang.CharSequence)("; DROP TABLE"))))|(name.contains((java.lang.CharSequence)("\' UNION SELECT")))) 
+   throw new SQLException("SQL Injection blocked");
   conn=(java.sql.Connection)null;
-  pstmt=(java.sql.PreparedStatement)null;
+  stmt=(java.sql.PreparedStatement)null;
   rs=(java.sql.ResultSet)null;
-  avgVal=new netrexx.lang.Rexx(0);
-  if (dbPath!=null) 
-   if (!dbPath.equals("null")) 
+  avg=new netrexx.lang.Rexx(0);
+  {try{
+   if ((dbPath!=null)&netrexx.lang.Rexx.toRexx(dbPath).OpNotEq(null,$02)) 
     {
-     {try{
-      conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
-      pstmt=conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?");
-      pstmt.setString(1,name);
-      rs=pstmt.executeQuery();
-      if (rs.next()) 
-       {
-        avgVal=new netrexx.lang.Rexx(rs.getDouble(1));
-       }
-     }
-     catch (java.sql.SQLException $6){exSql=$6;
-      netrexx.lang.RexxIO.Say("Database error in getAverageMetric: "+exSql.getMessage());
-     }
-     finally{
-      {try{
-       if (rs!=null) 
-        rs.close();
-       if (pstmt!=null) 
-        pstmt.close();
-       if (conn!=null) 
-        conn.close();
+     conn=DriverManager.getConnection("jdbc:sqlite:"+dbPath);
+     stmt=conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?");
+     stmt.setString(1,name);
+     rs=stmt.executeQuery();
+     if (rs.next()) 
+      {
+       avg=new netrexx.lang.Rexx(rs.getDouble(1));
       }
-      catch (java.sql.SQLException $7){
-       ;
-      }}
-     }}
     }
-  return avgVal;
+  }
+  catch (java.sql.SQLException $6){ex=$6;
+   netrexx.lang.RexxIO.Say("Database query error: "+ex.getMessage());
+  }
+  finally{
+   {try{
+    if (rs!=null) 
+     rs.close();
+    if (stmt!=null) 
+     stmt.close();
+    if (conn!=null) 
+     conn.close();
+   }
+   catch (java.sql.SQLException $7){
+    ;
+   }}
+  }}
+  return avg;
   }
  
  

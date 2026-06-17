@@ -80,15 +80,17 @@
           "0",
           "1.5",
           "-45.2",
-          "100.0"
+          "100.0",
+          "1.7976931348623157e+308",
+          "-1.7976931348623157e+308"
         ],
         "counter": [
           {
-            "value": "1.7976931348623157e+308",
+            "value": "1.7976931348623159e+308",
             "expected": "java.lang.NumberFormatException"
           },
           {
-            "value": "-1.7976931348623157e+308",
+            "value": "-1.7976931348623159e+308",
             "expected": "java.lang.NumberFormatException"
           },
           {
@@ -115,17 +117,11 @@
           "0",
           "100",
           "-50",
-          "999"
+          "999",
+          "2147483647",
+          "-2147483648"
         ],
         "counter": [
-          {
-            "value": "2147483647",
-            "expected": "java.lang.NumberFormatException"
-          },
-          {
-            "value": "-2147483648",
-            "expected": "java.lang.NumberFormatException"
-          },
           {
             "value": "2147483648",
             "expected": "java.lang.NumberFormatException"
