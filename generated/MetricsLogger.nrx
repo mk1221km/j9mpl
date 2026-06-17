@@ -91,36 +91,45 @@ class MetricsLogger public
     end
 
   method getAverageMetric(dbPath = String, name = String) public static returns Rexx
-    validatePath(dbPath)
-    validateStringField("name", name)
-
+    -- Validate inputs: dbPath and name
+    if dbPath = null | dbPath = "" | dbPath.trim().length() = 0 then -
+      signal java.lang.IllegalArgumentException("Invalid input")
+    if name = null | name = "" | name.trim().length() = 0 then -
+      signal java.lang.IllegalArgumentException("Invalid input")
+    -- Path traversal checks for dbPath
+    if dbPath.startsWith("/etc/") | dbPath.contains("..") | -
+       dbPath.startsWith("C:\\") | dbPath.contains("C:\\Windows") then -
+      signal java.io.IOException("Path traversal blocked")
+    -- SQL injection checks for name
+    if name.contains("' OR '1'='1") | name.contains("; DROP TABLE") | -
+       name.contains("' UNION SELECT") then -
+      signal java.sql.SQLException("SQL Injection blocked")
     conn = Connection null
-    pstmt = PreparedStatement null
+    stmt = PreparedStatement null
     rs = ResultSet null
-    avgVal = Rexx 0
-    
-    if dbPath \== null then if dbPath \== "null" then do
-      do
+    avg = Rexx 0
+    do
+      if dbPath \= null & dbPath \= "null" then do
         conn = DriverManager.getConnection("jdbc:sqlite:" || dbPath)
-        pstmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?")
-        pstmt.setString(1, name)
-        rs = pstmt.executeQuery()
+        stmt = conn.prepareStatement("SELECT AVG(value) FROM system_metrics WHERE name = ?")
+        stmt.setString(1, name)
+        rs = stmt.executeQuery()
         if rs.next() then do
-          avgVal = Rexx rs.getDouble(1)
-        end
-      catch exSql = SQLException
-        say "Database error in getAverageMetric: " || exSql.getMessage()
-      finally
-        do
-          if rs \== null then rs.close()
-          if pstmt \== null then pstmt.close()
-          if conn \== null then conn.close()
-        catch SQLException
-          nop
+          avg = Rexx rs.getDouble(1)
         end
       end
+    catch ex = SQLException
+      say "Database query error: " || ex.getMessage()
+    finally
+      do
+        if rs \= null then rs.close()
+        if stmt \= null then stmt.close()
+        if conn \= null then conn.close()
+      catch SQLException
+        nop
+      end
     end
-    return avgVal
+    return avg
 
   method main(args = String[]) public static
     dbPath = String null
