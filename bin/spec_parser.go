@@ -221,6 +221,27 @@ func zigType(specType string) string {
 	}
 }
 
+func generateSkeletonFromTemplate(db *sql.DB, langID string, className string, fields string, methods string) (string, error) {
+	var structTpl, fieldTpl, methodTpl string
+	err := db.QueryRow("SELECT struct_template, field_template, method_placeholder FROM skeleton_templates WHERE language_id=?", langID).Scan(&structTpl, &fieldTpl, &methodTpl)
+	if err != nil {
+		return "", fmt.Errorf("template not found for %s: %w", langID, err)
+	}
+	result := structTpl
+	result = strings.ReplaceAll(result, "{{CLASS_NAME}}", className)
+	result = strings.ReplaceAll(result, "{{FIELDS}}", fields)
+	methodsBlock := ""
+	for _, m := range strings.Split(methods, ",") {
+		m = strings.TrimSpace(m)
+		if m == "" {
+			continue
+		}
+		methodsBlock += strings.ReplaceAll(methodTpl, "{{METHOD_NAME}}", m)
+	}
+	result = strings.ReplaceAll(result, "{{METHODS}}", methodsBlock)
+	return result, nil
+}
+
 func GenerateZigSkeleton(spec ParsedSpec, mainClassName string) (string, error) {
 	var sb strings.Builder
 
