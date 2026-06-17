@@ -429,6 +429,8 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 	goArgs := convertArgsToGo(method.Args)
 	goRet := method.Returns
 	if goRet != "" {
+		// Map NetRexx return types to Go types
+		goRet = goType(strings.TrimPrefix(goRet, "returns "))
 		goRet = " " + goRet
 	}
 
@@ -441,6 +443,16 @@ func BuildMethodPrompt(dbPath string, mainClassName string, method SpecMethod, i
 		prompt.WriteString("Create the database connection inside main() using sql.Open().\n")
 		prompt.WriteString("Call helper functions via a local TransactionRouter instance.\n")
 		prompt.WriteString("IMPORTANT: Use PascalCase field names when accessing struct fields: record.TxId (NOT record.txId).\n")
+		// Inject exact method name inventory to prevent casing mismatches
+		prompt.WriteString("AVAILABLE METHODS (case-sensitive, use EXACTLY as listed):\n")
+		for _, class := range classes {
+			if len(class.Methods) > 0 && class.Name == mainClassName {
+				for _, m := range class.Methods {
+					prompt.WriteString(fmt.Sprintf("  - %s\n", m.Name))
+				}
+			}
+		}
+		prompt.WriteString("Call these methods in lowercase (e.g., router.initRoutingTable(...), NOT router.InitRoutingTable(...)).\n")
 	} else {
 		sig = fmt.Sprintf("func (s *%s) %s(%s)%s", mainClassName, method.Name, goArgs, goRet)
 		if goRet == "" {
